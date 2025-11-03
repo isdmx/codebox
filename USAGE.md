@@ -163,7 +163,37 @@ The server behavior can be controlled via `config.yaml`:
 - `sandbox.max_artifact_size_mb`: Max size of returned artifacts (default: 20)
 - `sandbox.network_enabled`: Whether to allow network access (default: false)
 - `sandbox.enable_local_backend`: Enable local executor (default: false)
-- Language-specific settings (container images, hooks, etc.)
+- Language-specific settings (container images, hooks, environment variables, etc.)
+
+## Environment Variables
+
+Each language can define custom environment variables in the configuration:
+
+```yaml
+languages:
+  python:
+    environment:
+      PYTHONPATH: "/workdir"
+      PYTHONIOENCODING: "utf-8"
+      # Add any other Python-specific environment variables
+  nodejs:
+    environment:
+      NODE_PATH: "/workdir"
+      NODE_ENV: "production"
+      # Add any other Node.js-specific environment variables
+  go:
+    environment:
+      GOCACHE: "/tmp/go-build"
+      GOMODCACHE: "/tmp/go-mod"
+      # Add any other Go-specific environment variables
+  cpp:
+    environment:
+      LANG: "C.UTF-8"
+      LC_ALL: "C.UTF-8"
+      # Add any other C++-specific environment variables
+```
+
+These environment variables will be available to the executed code during runtime.
 
 ## Security Features
 

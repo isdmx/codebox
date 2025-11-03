@@ -29,6 +29,9 @@ languages:
       signal.alarm(0)  # Cancel the alarm
       sys.stdout.flush()
       sys.stderr.flush()
+    environment:
+      PYTHONPATH: "/workdir"
+      PYTHONIOENCODING: "utf-8"
 
   nodejs:
     image: "node:20-alpine"
@@ -39,13 +42,22 @@ languages:
         process.exit(1);
       }, 10000);  // 10 seconds
     postfix_code: ""
+    environment:
+      NODE_PATH: "/workdir"
+      NODE_ENV: "production"
 
   go:
     image: "golang:1.23-alpine"
     build_cmd: "go build -o /workdir/app /workdir/main.go"
     run_cmd: "/workdir/app"
+    environment:
+      GOCACHE: "/tmp/go-build"
+      GOMODCACHE: "/tmp/go-mod"
 
   cpp:
     image: "gcc:13"
     build_cmd: "g++ -std=c++17 -O2 -o /workdir/app /workdir/main.cpp"
     run_cmd: "/workdir/app"
+    environment:
+      LANG: "C.UTF-8"
+      LC_ALL: "C.UTF-8"

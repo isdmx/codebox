@@ -81,4 +81,5 @@ yarn-error.log*
 
 # Local config overrides
 config_local.yaml
-config_dev.yaml
+config_dev.yamlmain
+main

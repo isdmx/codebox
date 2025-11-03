@@ -1,3 +1,9 @@
+// Package sandbox provides secure code execution capabilities.
+//
+// The sandbox package implements the execution engine for running untrusted
+// code in isolated environments. The DockerExecutor runs code in Docker containers
+// with security constraints including resource limits, network isolation, and
+// read-only filesystems except for the working directory.
 package sandbox
 
 import (
@@ -20,6 +26,7 @@ import (
 type DockerExecutor struct {
 	logger *zap.Logger
 	config *Config
+	langEnvs *LanguageEnvironments
 }
 
 // Config holds configuration for the Docker executor
@@ -30,11 +37,20 @@ type Config struct {
 	MaxArtifactSizeMB int
 }
 
+// LanguageEnvironments holds environment variables for different languages
+type LanguageEnvironments struct {
+	Python map[string]string
+	NodeJS map[string]string
+	Go     map[string]string
+	CPP    map[string]string
+}
+
 // NewDockerExecutor creates a new DockerExecutor
-func NewDockerExecutor(logger *zap.Logger, config *Config) *DockerExecutor {
+func NewDockerExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments) *DockerExecutor {
 	return &DockerExecutor{
 		logger: logger,
 		config: config,
+		langEnvs: langEnvs,
 	}
 }
 
@@ -98,6 +114,16 @@ func (d *DockerExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 
 	// Add the image and command to execute
 	cmdArgs = append(cmdArgs, imageName)
+
+	// Add environment variables based on language
+	envVars, err := d.getEnvironmentVariables(req.Language)
+	if err != nil {
+		return ExecuteResult{}, fmt.Errorf("failed to get environment variables: %w", err)
+	}
+	
+	for key, value := range envVars {
+		cmdArgs = append(cmdArgs, "-e", fmt.Sprintf("%s=%s", key, value))
+	}
 
 	// Determine the command to run based on language
 	runCmd, err := d.getRunCommand(req.Language)
@@ -257,6 +283,37 @@ func (d *DockerExecutor) getRunCommand(language string) (string, error) {
 		return "g++ -std=c++17 -O2 -o app main.cpp && ./app", nil
 	default:
 		return "", fmt.Errorf("unsupported language: %s", language)
+	}
+}
+
+func (d *DockerExecutor) getEnvironmentVariables(language string) (map[string]string, error) {
+	if d.langEnvs == nil {
+		return map[string]string{}, nil
+	}
+	
+	switch language {
+	case "python":
+		if d.langEnvs.Python != nil {
+			return d.langEnvs.Python, nil
+		}
+		return map[string]string{}, nil
+	case "nodejs":
+		if d.langEnvs.NodeJS != nil {
+			return d.langEnvs.NodeJS, nil
+		}
+		return map[string]string{}, nil
+	case "go":
+		if d.langEnvs.Go != nil {
+			return d.langEnvs.Go, nil
+		}
+		return map[string]string{}, nil
+	case "cpp":
+		if d.langEnvs.CPP != nil {
+			return d.langEnvs.CPP, nil
+		}
+		return map[string]string{}, nil
+	default:
+		return map[string]string{}, fmt.Errorf("unsupported language: %s", language)
 	}
 }
 

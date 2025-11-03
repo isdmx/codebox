@@ -1,3 +1,8 @@
+// Package config provides application configuration management.
+//
+// The config package handles loading and validation of the application's
+// configuration from YAML files. It supports configuration for server
+// settings, sandbox execution parameters, and language-specific settings.
 package config
 
 import (
@@ -40,30 +45,34 @@ type LanguageConfig struct {
 
 // PythonConfig holds Python-specific configuration
 type PythonConfig struct {
-	Image       string `mapstructure:"image"`
-	PrefixCode  string `mapstructure:"prefix_code"`
-	PostfixCode string `mapstructure:"postfix_code"`
+	Image       string            `mapstructure:"image"`
+	PrefixCode  string            `mapstructure:"prefix_code"`
+	PostfixCode string            `mapstructure:"postfix_code"`
+	Environment map[string]string `mapstructure:"environment"`
 }
 
 // NodeJSConfig holds Node.js-specific configuration
 type NodeJSConfig struct {
-	Image       string `mapstructure:"image"`
-	PrefixCode  string `mapstructure:"prefix_code"`
-	PostfixCode string `mapstructure:"postfix_code"`
+	Image       string            `mapstructure:"image"`
+	PrefixCode  string            `mapstructure:"prefix_code"`
+	PostfixCode string            `mapstructure:"postfix_code"`
+	Environment map[string]string `mapstructure:"environment"`
 }
 
 // GoConfig holds Go-specific configuration
 type GoConfig struct {
-	Image    string `mapstructure:"image"`
-	BuildCmd string `mapstructure:"build_cmd"`
-	RunCmd   string `mapstructure:"run_cmd"`
+	Image       string            `mapstructure:"image"`
+	BuildCmd    string            `mapstructure:"build_cmd"`
+	RunCmd      string            `mapstructure:"run_cmd"`
+	Environment map[string]string `mapstructure:"environment"`
 }
 
 // CPPConfig holds C++-specific configuration
 type CPPConfig struct {
-	Image    string `mapstructure:"image"`
-	BuildCmd string `mapstructure:"build_cmd"`
-	RunCmd   string `mapstructure:"run_cmd"`
+	Image       string            `mapstructure:"image"`
+	BuildCmd    string            `mapstructure:"build_cmd"`
+	RunCmd      string            `mapstructure:"run_cmd"`
+	Environment map[string]string `mapstructure:"environment"`
 }
 
 // New loads and validates the application configuration

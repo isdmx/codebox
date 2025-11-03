@@ -42,8 +42,13 @@ languages:
     image: "python:3.11-slim"
     prefix_code: "..."
     postfix_code: "..."
-  # ... other language configurations
+    environment:  # Optional environment variables
+      PYTHONPATH: "/workdir"
+      PYTHONIOENCODING: "utf-8"
+  # ... other language configurations with environment variables
 ```
+
+Each language supports an optional `environment` section to set custom environment variables for the execution environment. These variables are passed to the execution runtime and can be used to control language-specific behavior.
 
 ## Usage
 

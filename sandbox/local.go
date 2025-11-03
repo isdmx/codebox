@@ -1,3 +1,9 @@
+// Package sandbox provides secure code execution capabilities.
+//
+// The sandbox package implements the execution engine for running untrusted
+// code in isolated environments. The LocalExecutor runs code directly on the host
+// system (for development only) with security constraints applied through process
+// environments and resource limits.
 package sandbox
 
 import (
@@ -20,13 +26,15 @@ import (
 type LocalExecutor struct {
 	logger *zap.Logger
 	config *Config
+	langEnvs *LanguageEnvironments
 }
 
 // NewLocalExecutor creates a new LocalExecutor
-func NewLocalExecutor(logger *zap.Logger, config *Config) *LocalExecutor {
+func NewLocalExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments) *LocalExecutor {
 	return &LocalExecutor{
 		logger: logger,
 		config: config,
+		langEnvs: langEnvs,
 	}
 }
 
@@ -107,6 +115,20 @@ func (l *LocalExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execut
 
 	// Set working directory
 	cmd.Dir = workdirPath
+
+	// Set environment variables based on language
+	envVars, err := l.getEnvironmentVariables(req.Language)
+	if err != nil {
+		return ExecuteResult{}, fmt.Errorf("failed to get environment variables: %w", err)
+	}
+	
+	// Start with existing environment
+	cmd.Env = os.Environ()
+	
+	// Add custom environment variables
+	for key, value := range envVars {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, value))
+	}
 
 	// Capture stdout and stderr
 	var stdoutBuf, stderrBuf bytes.Buffer
@@ -362,4 +384,35 @@ func (l *LocalExecutor) createTarFromDir(srcDir string) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func (l *LocalExecutor) getEnvironmentVariables(language string) (map[string]string, error) {
+	if l.langEnvs == nil {
+		return map[string]string{}, nil
+	}
+	
+	switch language {
+	case "python":
+		if l.langEnvs.Python != nil {
+			return l.langEnvs.Python, nil
+		}
+		return map[string]string{}, nil
+	case "nodejs":
+		if l.langEnvs.NodeJS != nil {
+			return l.langEnvs.NodeJS, nil
+		}
+		return map[string]string{}, nil
+	case "go":
+		if l.langEnvs.Go != nil {
+			return l.langEnvs.Go, nil
+		}
+		return map[string]string{}, nil
+	case "cpp":
+		if l.langEnvs.CPP != nil {
+			return l.langEnvs.CPP, nil
+		}
+		return map[string]string{}, nil
+	default:
+		return map[string]string{}, fmt.Errorf("unsupported language: %s", language)
+	}
 }

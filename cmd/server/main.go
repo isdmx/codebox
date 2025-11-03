@@ -1,7 +1,18 @@
+// Package main is the entry point for the Codebox MCP server.
+//
+// The Codebox server implements a secure, configurable Model Context Protocol (MCP)
+// server that executes untrusted user code (Python, Node.js, Go, C++) in isolated
+// sandboxes. The server supports both stdio and HTTP transports and provides
+// comprehensive security features including resource limits, network isolation,
+// and path traversal protection.
+//
+// The application uses Uber's fx framework for dependency injection and lifecycle
+// management, with zap for structured logging and viper for configuration.
 package main
 
 import (
 	"go.uber.org/fx"
+	"go.uber.org/fx/fxevent"
 	"go.uber.org/zap"
 
 	"github.com/isdmx/codebox/config"
@@ -22,14 +33,7 @@ func main() {
 			
 			// Sandbox executor based on config
 			func(cfg *config.Config, logger *zap.Logger) (sandbox.SandboxExecutor, error) {
-				executorConfig := &sandbox.Config{
-					TimeoutSec:        cfg.Sandbox.TimeoutSec,
-					MemoryMB:          cfg.Sandbox.MemoryMB,
-					NetworkEnabled:    cfg.Sandbox.NetworkEnabled,
-					MaxArtifactSizeMB: cfg.Sandbox.MaxArtifactSizeMB,
-				}
-				
-				return sandbox.NewExecutor(logger, executorConfig, cfg.Sandbox.Backend)
+				return sandbox.NewExecutor(logger, cfg, cfg.Sandbox.Backend)
 			},
 			
 			// MCP Server
@@ -58,6 +62,11 @@ func main() {
 				}
 			},
 		),
+		
+		// Use the application logger for fx logs
+		fx.WithLogger(func(log *zap.Logger) fxevent.Logger {
+			return &fxevent.ZapLogger{Logger: log}
+		}),
 	)
 
 	// Start the application
