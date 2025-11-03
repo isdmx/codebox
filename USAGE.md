@@ -1,0 +1,187 @@
+# How to Use the Codebox MCP Server
+
+## Installation
+
+### Prerequisites
+- Go 1.23+
+- Docker or Podman (for sandboxing, optional for local development)
+- Node.js (for the MCP inspector tool)
+
+### Installing the MCP Inspector Tool
+```bash
+npm install -g @modelcontextprotocol/inspector
+```
+
+## Running the Server
+
+### Stdio Transport (Default)
+```bash
+# Build the server
+go build -o codebox-server cmd/server/main.go
+
+# Run with default config (stdio transport)
+./codebox-server
+```
+
+### HTTP Transport
+Update your `config.yaml` to:
+```yaml
+server:
+  transport: "http"
+  http_port: 8080
+```
+
+Then run the server:
+```bash
+./codebox-server
+```
+
+### Using Docker
+```bash
+# Build the image
+docker build -t codebox .
+
+# Run with Docker (requires Docker socket access for nested containers)
+docker run -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 codebox
+```
+
+## Using the MCP Inspector
+
+First, make sure the inspector tool is installed:
+```bash
+npm install -g @modelcontextprotocol/inspector
+```
+
+Check available options:
+```bash
+mcp-inspector --help
+```
+
+Once the server is running, you can connect using the MCP inspector:
+
+### Using the CLI Mode (Opens Browser Interface)
+The correct way to use the inspector with the Codebox server. Note that the `--cli` flag opens a browser-based interface:
+
+```bash
+# List available tools (opens browser)
+mcp-inspector --cli --transport http --method tools/list --server-url --target http://localhost:8080/mcp
+
+# Execute Python code (opens browser)
+mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp --tool-name execute_sandboxed_code --tool-arg language=python --tool-arg code="print(2+2)"
+
+# Execute Node.js code (opens browser)
+mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp --tool-name execute_sandboxed_code --tool-arg language=nodejs --tool-arg code="console.log('Hello from Node.js');"
+
+# Execute Go code (opens browser)
+mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp --tool-name execute_sandboxed_code --tool-arg language=go --tool-arg code="package main\n\nimport \"fmt\"\n\nfunc main() {\n    fmt.Println(\"Hello from Go!\")\n    return\n}"
+
+# Execute C++ code (opens browser)
+mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp --tool-name execute_sandboxed_code --tool-arg language=cpp --tool-arg code="#include <iostream>\nint main() { std::cout << \"Hello from C++!\"; return 0; }"
+
+# Execute with initial files (opens browser)
+mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp --tool-name execute_sandboxed_code --tool-arg language=python --tool-arg code="with open('input.txt', 'r') as f: print(f.read())" --tool-arg workdir_tar="base64-encoded-tar-content-here"
+```
+
+Note: The MCP Inspector does not have a command-line interactive mode. The `--cli` flag opens a browser-based interface where you can interact with the tools.
+```
+
+## MCP Tool Usage
+
+The server exposes a single tool: `execute_sandboxed_code`
+
+### Parameters:
+- `code` (string, required): The source code to execute
+- `language` (string, required): One of `python`, `nodejs`, `go`, `cpp`
+- `workdir_tar` (string, optional): Base64-encoded tar.gz of initial working directory
+
+### Examples:
+
+#### Python Execution
+```json
+{
+  "method": "tools/execute_sandboxed_code",
+  "params": {
+    "arguments": {
+      "code": "print('Hello from sandboxed Python!')\nprint('2 + 2 =', 2 + 2)",
+      "language": "python"
+    }
+  },
+  "id": "req-1"
+}
+```
+
+#### Node.js Execution
+```json
+{
+  "method": "tools/execute_sandboxed_code",
+  "params": {
+    "arguments": {
+      "code": "console.log('Hello from sandboxed Node.js!');\nconsole.log('Current time:', new Date().toISOString());",
+      "language": "nodejs"
+    }
+  },
+  "id": "req-2"
+}
+```
+
+#### Python with Initial Files
+```json
+{
+  "method": "tools/execute_sandboxed_code",
+  "params": {
+    "arguments": {
+      "code": "import json\nwith open('data.json', 'r') as f:\n    data = json.load(f)\nprint('Loaded data:', data)",
+      "language": "python",
+      "workdir_tar": "base64-encoded-tar-content-here"
+    }
+  },
+  "id": "req-3"
+}
+```
+
+## Expected Response Format
+
+The server returns responses in MCP format containing a JSON string with:
+```json
+{
+  "stdout": "captured standard output",
+  "stderr": "captured standard error", 
+  "exit_code": 0,
+  "artifacts_tar": "base64-encoded-final-workdir-content"
+}
+```
+
+## Configuration
+
+The server behavior can be controlled via `config.yaml`:
+
+- `server.transport`: "stdio" or "http"
+- `server.http_port`: Port for HTTP transport (default: 8080)
+- `sandbox.backend`: "docker", "podman", or "local"
+- `sandbox.timeout_sec`: Execution timeout in seconds (default: 10)
+- `sandbox.memory_mb`: Memory limit in MB (default: 512)
+- `sandbox.max_artifact_size_mb`: Max size of returned artifacts (default: 20)
+- `sandbox.network_enabled`: Whether to allow network access (default: false)
+- `sandbox.enable_local_backend`: Enable local executor (default: false)
+- Language-specific settings (container images, hooks, etc.)
+
+## Security Features
+
+- Code runs in isolated containers
+- Resource limits enforced (time, memory)
+- Network disabled by default
+- File system access restricted to workdir
+- Path traversal protection in tar operations
+- Non-root execution in containers
+- System call restrictions via container capabilities
+
+## Development Notes
+
+To run with local execution (NOT SECURE, for development only):
+```yaml
+sandbox:
+  backend: "local"
+  enable_local_backend: true
+```
+
+Warning: The local backend provides no security isolation and should never be used in production.

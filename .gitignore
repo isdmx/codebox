@@ -1,0 +1,84 @@
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.o
+*.a
+*.obj
+
+# Build artifacts
+*.zip
+*.tar.gz
+*.tar
+*.gz
+
+# Go build
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.prof
+*.coverprofile
+
+# Go binaries
+bin/
+_build/
+_dist/
+
+# Go workspace
+go.work
+go.work.sum
+
+# Build and test outputs
+coverage.out
+profile.out
+*.binary
+
+# Project specific binaries
+codebox-server
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+tmp/
+temp/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+
+# Node.js (for inspector tool)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+.dockerignore
+
+# Temporary files
+*tmp/
+*temp/
+.DS_Store
+._*
+
+# Local config overrides
+config_local.yaml
+config_dev.yaml
