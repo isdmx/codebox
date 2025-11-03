@@ -35,11 +35,11 @@ languages:
   nodejs:
     image: "node:20-alpine"
     prefix_code: |
-      # // Set timeout for Node.js execution
-      setTimeout(() => {
-         console.log('Execution timeout!');
-        process.exit(1);
-       }, 5000);  // 10 seconds
+      // Set timeout for Node.js execution
+      //setTimeout(() => {
+      //  console.log('Execution timeout!');
+      // process.exit(1);
+      //}, 5000);  // 10 seconds
     postfix_code: |
       process.exit(0)
     environment:

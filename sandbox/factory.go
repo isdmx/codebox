@@ -9,24 +9,25 @@ import (
 	"fmt"
 
 	"go.uber.org/zap"
+
 	"github.com/isdmx/codebox/config"
 )
 
 // NewExecutor creates an appropriate sandbox executor based on the configuration
-func NewExecutor(logger *zap.Logger, config *config.Config, backend string) (SandboxExecutor, error) {
+func NewExecutor(logger *zap.Logger, cfg *config.Config, backend string) (SandboxExecutor, error) {
 	executorConfig := Config{
-		TimeoutSec:        config.Sandbox.TimeoutSec,
-		MemoryMB:          config.Sandbox.MemoryMB,
-		NetworkEnabled:    config.Sandbox.NetworkEnabled,
-		MaxArtifactSizeMB: config.Sandbox.MaxArtifactSizeMB,
+		TimeoutSec:        cfg.Sandbox.TimeoutSec,
+		MemoryMB:          cfg.Sandbox.MemoryMB,
+		NetworkEnabled:    cfg.Sandbox.NetworkEnabled,
+		MaxArtifactSizeMB: cfg.Sandbox.MaxArtifactSizeMB,
 	}
 
 	// Create language environments from config
 	langEnvs := &LanguageEnvironments{
-		Python: config.Languages.Python.Environment,
-		NodeJS: config.Languages.NodeJS.Environment,
-		Go:     config.Languages.Go.Environment,
-		CPP:    config.Languages.CPP.Environment,
+		Python: cfg.Languages.Python.Environment,
+		NodeJS: cfg.Languages.NodeJS.Environment,
+		Go:     cfg.Languages.Go.Environment,
+		CPP:    cfg.Languages.CPP.Environment,
 	}
 
 	switch backend {

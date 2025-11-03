@@ -21,34 +21,34 @@ import (
 
 // MCPServer represents the MCP server
 type MCPServer struct {
-	config       *config.Config
-	logger       *zap.Logger
-	sandboxExec  sandbox.SandboxExecutor
-	mcpServer    *server.MCPServer
+	config      *config.Config
+	logger      *zap.Logger
+	sandboxExec sandbox.SandboxExecutor
+	mcpServer   *server.MCPServer
 }
 
 // New creates a new MCPServer
-func New(config *config.Config, logger *zap.Logger, sandboxExec sandbox.SandboxExecutor) (*MCPServer, error) {
+func New(cfg *config.Config, logger *zap.Logger, sandboxExec sandbox.SandboxExecutor) (*MCPServer, error) {
 	s := &MCPServer{
-		config:      config,
+		config:      cfg,
 		logger:      logger,
 		sandboxExec: sandboxExec,
 	}
 
 	// Log configuration parameters on startup
 	logger.Info("configuration loaded",
-		zap.String("server.transport", config.Server.Transport),
-		zap.Int("server.http_port", config.Server.HTTPPort),
-		zap.String("sandbox.backend", config.Sandbox.Backend),
-		zap.Int("sandbox.timeout_sec", config.Sandbox.TimeoutSec),
-		zap.Int("sandbox.memory_mb", config.Sandbox.MemoryMB),
-		zap.Int("sandbox.max_artifact_size_mb", config.Sandbox.MaxArtifactSizeMB),
-		zap.Bool("sandbox.network_enabled", config.Sandbox.NetworkEnabled),
-		zap.Bool("sandbox.enable_local_backend", config.Sandbox.EnableLocalBackend),
-		zap.String("languages.python.image", config.Languages.Python.Image),
-		zap.String("languages.nodejs.image", config.Languages.NodeJS.Image),
-		zap.String("languages.go.image", config.Languages.Go.Image),
-		zap.String("languages.cpp.image", config.Languages.CPP.Image),
+		zap.String("server.transport", s.config.Server.Transport),
+		zap.Int("server.http_port", s.config.Server.HTTPPort),
+		zap.String("sandbox.backend", s.config.Sandbox.Backend),
+		zap.Int("sandbox.timeout_sec", s.config.Sandbox.TimeoutSec),
+		zap.Int("sandbox.memory_mb", s.config.Sandbox.MemoryMB),
+		zap.Int("sandbox.max_artifact_size_mb", s.config.Sandbox.MaxArtifactSizeMB),
+		zap.Bool("sandbox.network_enabled", s.config.Sandbox.NetworkEnabled),
+		zap.Bool("sandbox.enable_local_backend", s.config.Sandbox.EnableLocalBackend),
+		zap.String("languages.python.image", s.config.Languages.Python.Image),
+		zap.String("languages.nodejs.image", s.config.Languages.NodeJS.Image),
+		zap.String("languages.go.image", s.config.Languages.Go.Image),
+		zap.String("languages.cpp.image", s.config.Languages.CPP.Image),
 	)
 
 	// Create the MCP server
@@ -119,11 +119,11 @@ func (s *MCPServer) handleExecuteSandboxedCode(ctx context.Context, request mcp.
 	var workdirTar []byte
 	workdirTarStr := request.GetString("workdir_tar", "")
 	if workdirTarStr != "" {
-		decoded, err := base64.StdEncoding.DecodeString(workdirTarStr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode workdir_tar: %w", err)
+		decodedWorkdirTar, decodeErr := base64.StdEncoding.DecodeString(workdirTarStr)
+		if decodeErr != nil {
+			return nil, fmt.Errorf("failed to decode workdir_tar: %w", decodeErr)
 		}
-		workdirTar = decoded
+		workdirTar = decodedWorkdirTar
 	}
 
 	// Log execution
@@ -144,7 +144,7 @@ func (s *MCPServer) handleExecuteSandboxedCode(ctx context.Context, request mcp.
 	// Execute the code
 	result, err := s.sandboxExec.Execute(ctx, req)
 	if err != nil {
-		s.logger.Error("sandbox execution failed", 
+		s.logger.Error("sandbox execution failed",
 			zap.Error(err),
 			zap.String("language", language),
 			zap.String("code", code))
@@ -193,7 +193,7 @@ func (s *MCPServer) ServeStdio() error {
 func (s *MCPServer) ServeHTTP() error {
 	port := s.config.Server.HTTPPort
 	s.logger.Info("starting MCP server on HTTP", zap.Int("port", port))
-	
+
 	httpServer := server.NewStreamableHTTPServer(s.mcpServer)
 	return httpServer.Start(fmt.Sprintf(":%d", port))
 }

@@ -7,15 +7,17 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 // Config represents the application configuration
 type Config struct {
-	Server  ServerConfig  `mapstructure:"server"`
-	Sandbox SandboxConfig `mapstructure:"sandbox"`
+	Server    ServerConfig   `mapstructure:"server"`
+	Sandbox   SandboxConfig  `mapstructure:"sandbox"`
 	Languages LanguageConfig `mapstructure:"languages"`
 }
 
@@ -27,12 +29,12 @@ type ServerConfig struct {
 
 // SandboxConfig holds sandbox configuration
 type SandboxConfig struct {
-	Backend            string        `mapstructure:"backend"`
-	TimeoutSec         int           `mapstructure:"timeout_sec"`
-	MemoryMB           int           `mapstructure:"memory_mb"`
-	MaxArtifactSizeMB  int           `mapstructure:"max_artifact_size_mb"`
-	NetworkEnabled     bool          `mapstructure:"network_enabled"`
-	EnableLocalBackend bool          `mapstructure:"enable_local_backend"`
+	Backend            string `mapstructure:"backend"`
+	TimeoutSec         int    `mapstructure:"timeout_sec"`
+	MemoryMB           int    `mapstructure:"memory_mb"`
+	MaxArtifactSizeMB  int    `mapstructure:"max_artifact_size_mb"`
+	NetworkEnabled     bool   `mapstructure:"network_enabled"`
+	EnableLocalBackend bool   `mapstructure:"enable_local_backend"`
 }
 
 // LanguageConfig holds language-specific configurations
@@ -82,19 +84,36 @@ func New() (*Config, error) {
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("./config")
 
+	// Define default values as constants to avoid magic numbers
+	const (
+		defaultHTTPPort        = 8080
+		defaultTimeoutSec      = 10
+		defaultMemoryMB        = 512
+		defaultMaxArtifactSize = 20
+	)
+
 	// Set default values
 	viper.SetDefault("server.transport", "stdio")
-	viper.SetDefault("server.http_port", 8080)
+	viper.SetDefault("server.http_port", defaultHTTPPort)
 	viper.SetDefault("sandbox.backend", "docker")
-	viper.SetDefault("sandbox.timeout_sec", 10)
-	viper.SetDefault("sandbox.memory_mb", 512)
-	viper.SetDefault("sandbox.max_artifact_size_mb", 20)
+	viper.SetDefault("sandbox.timeout_sec", defaultTimeoutSec)
+	viper.SetDefault("sandbox.memory_mb", defaultMemoryMB)
+	viper.SetDefault("sandbox.max_artifact_size_mb", defaultMaxArtifactSize)
 	viper.SetDefault("sandbox.network_enabled", false)
 	viper.SetDefault("sandbox.enable_local_backend", false)
 
 	// Python defaults
 	viper.SetDefault("languages.python.image", "python:3.11-slim")
-	viper.SetDefault("languages.python.prefix_code", "import signal, sys\n\ndef timeout_handler(signum, frame):\n    print('Execution timeout!')\n    sys.exit(1)\n\nsignal.signal(signal.SIGALRM, timeout_handler)\nsignal.alarm(10)\n")
+	pythonPrefixCode := `import signal, sys
+
+def timeout_handler(signum, frame):
+    print('Execution timeout!')
+    sys.exit(1)
+
+signal.signal(signal.SIGALRM, timeout_handler)
+signal.alarm(10)
+`
+	viper.SetDefault("languages.python.prefix_code", pythonPrefixCode)
 	viper.SetDefault("languages.python.postfix_code", "\nsignal.alarm(0)")
 
 	// Node.js defaults
@@ -104,24 +123,30 @@ func New() (*Config, error) {
 
 	// Go defaults
 	viper.SetDefault("languages.go.image", "golang:1.23-alpine")
-	viper.SetDefault("languages.go.build_cmd", "go build -o /workdir/app /workdir/main.go")
 	viper.SetDefault("languages.go.run_cmd", "/workdir/app")
+	viper.SetDefault("languages.go.build_cmd", "go build -o /workdir/app /workdir/main.go")
 
 	// C++ defaults
 	viper.SetDefault("languages.cpp.image", "gcc:13")
 	viper.SetDefault("languages.cpp.build_cmd", "g++ -std=c++17 -O2 -o /workdir/app /workdir/main.cpp")
 	viper.SetDefault("languages.cpp.run_cmd", "/workdir/app")
 
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, fmt.Errorf("error reading config file: %w", err)
+	if configReadErr := viper.ReadInConfig(); configReadErr != nil {
+		if _, ok := configReadErr.(viper.ConfigFileNotFoundError); !ok {
+			return nil, fmt.Errorf("error reading config file: %w", configReadErr)
 		}
 		// If config file not found, continue with defaults
 	}
 
+	// Load config without environment variables first
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
 		return nil, fmt.Errorf("error unmarshaling config: %w", err)
+	}
+
+	// Manually load environment variables to preserve case
+	if err := loadEnvironmentVariables(&config); err != nil {
+		return nil, fmt.Errorf("error loading environment variables: %w", err)
 	}
 
 	// Validate configuration
@@ -130,6 +155,84 @@ func New() (*Config, error) {
 	}
 
 	return &config, nil
+}
+
+// loadEnvironmentVariables loads environment variables from the config file preserving case
+func loadEnvironmentVariables(config *Config) error {
+	data := readConfigData()
+	if data == nil {
+		return nil // No config file found, use defaults
+	}
+
+	var rawConfig map[string]any
+	if err := yaml.Unmarshal(data, &rawConfig); err != nil {
+		return fmt.Errorf("error unmarshaling raw config: %w", err)
+	}
+
+	return loadLanguageEnvironments(rawConfig, config)
+}
+
+func readConfigData() []byte {
+	possiblePaths := []string{"./config.yaml", "./config.yml", "./config/config.yaml", "./config/config.yml", "."}
+
+	for _, path := range possiblePaths {
+		if path == "." {
+			for _, configFile := range []string{"config.yaml", "config.yml"} {
+				d, err := os.ReadFile(configFile)
+				if err == nil {
+					return d
+				}
+				// Continue to next file if current one doesn't exist
+			}
+		} else {
+			d, err := os.ReadFile(path)
+			if err == nil {
+				return d
+			}
+		}
+	}
+
+	return nil // No config file found
+}
+
+func loadLanguageEnvironments(rawConfig map[string]any, config *Config) error {
+	languages, ok := rawConfig["languages"].(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	pythonEnv := getLanguageEnvironment(languages, "python")
+	config.Languages.Python.Environment = pythonEnv
+
+	nodejsEnv := getLanguageEnvironment(languages, "nodejs")
+	config.Languages.NodeJS.Environment = nodejsEnv
+
+	goEnv := getLanguageEnvironment(languages, "go")
+	config.Languages.Go.Environment = goEnv
+
+	cppEnv := getLanguageEnvironment(languages, "cpp")
+	config.Languages.CPP.Environment = cppEnv
+
+	return nil
+}
+
+func getLanguageEnvironment(languages map[string]any, lang string) map[string]string {
+	envMap := make(map[string]string)
+
+	if langData, ok := languages[lang]; ok {
+		if langMap, ok := langData.(map[string]any); ok {
+			if env, ok := langMap["environment"]; ok {
+				if envRaw, ok := env.(map[string]any); ok {
+					for k, v := range envRaw {
+						if vStr, ok := v.(string); ok {
+							envMap[k] = vStr
+						}
+					}
+				}
+			}
+		}
+	}
+	return envMap
 }
 
 // validate ensures the configuration is valid
@@ -151,10 +254,10 @@ func (c *Config) validate() error {
 	}
 
 	supportedBackends := map[string]bool{
-		"docker": true,
-		"podman": true,
+		"docker":     true,
+		"podman":     true,
 		"kubernetes": true,
-		"local": c.Sandbox.EnableLocalBackend, // local only enabled if specifically allowed
+		"local":      c.Sandbox.EnableLocalBackend, // local only enabled if specifically allowed
 	}
 
 	if !supportedBackends[c.Sandbox.Backend] {

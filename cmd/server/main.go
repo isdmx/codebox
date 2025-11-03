@@ -27,19 +27,19 @@ func main() {
 		fx.Provide(
 			// Config
 			config.New,
-			
+
 			// Logger
 			logger.New,
-			
+
 			// Sandbox executor based on config
 			func(cfg *config.Config, logger *zap.Logger) (sandbox.SandboxExecutor, error) {
 				return sandbox.NewExecutor(logger, cfg, cfg.Sandbox.Backend)
 			},
-			
+
 			// MCP Server
 			mcpserver.New,
 		),
-		
+
 		// Start the appropriate transport based on config
 		fx.Invoke(
 			func(cfg *config.Config, server *mcpserver.MCPServer) {
@@ -62,7 +62,7 @@ func main() {
 				}
 			},
 		),
-		
+
 		// Use the application logger for fx logs
 		fx.WithLogger(func(log *zap.Logger) fxevent.Logger {
 			return &fxevent.ZapLogger{Logger: log}

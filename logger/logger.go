@@ -16,7 +16,7 @@ func New() (*zap.Logger, error) {
 	config.EncoderConfig.TimeKey = "timestamp"
 	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	config.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
-	
+
 	return config.Build()
 }
 
