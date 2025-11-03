@@ -35,6 +35,22 @@ func New(config *config.Config, logger *zap.Logger, sandboxExec sandbox.SandboxE
 		sandboxExec: sandboxExec,
 	}
 
+	// Log configuration parameters on startup
+	logger.Info("configuration loaded",
+		zap.String("server.transport", config.Server.Transport),
+		zap.Int("server.http_port", config.Server.HTTPPort),
+		zap.String("sandbox.backend", config.Sandbox.Backend),
+		zap.Int("sandbox.timeout_sec", config.Sandbox.TimeoutSec),
+		zap.Int("sandbox.memory_mb", config.Sandbox.MemoryMB),
+		zap.Int("sandbox.max_artifact_size_mb", config.Sandbox.MaxArtifactSizeMB),
+		zap.Bool("sandbox.network_enabled", config.Sandbox.NetworkEnabled),
+		zap.Bool("sandbox.enable_local_backend", config.Sandbox.EnableLocalBackend),
+		zap.String("languages.python.image", config.Languages.Python.Image),
+		zap.String("languages.nodejs.image", config.Languages.NodeJS.Image),
+		zap.String("languages.go.image", config.Languages.Go.Image),
+		zap.String("languages.cpp.image", config.Languages.CPP.Image),
+	)
+
 	// Create the MCP server
 	s.mcpServer = server.NewMCPServer("codebox-executor", "A secure code execution server")
 
@@ -128,7 +144,10 @@ func (s *MCPServer) handleExecuteSandboxedCode(ctx context.Context, request mcp.
 	// Execute the code
 	result, err := s.sandboxExec.Execute(ctx, req)
 	if err != nil {
-		s.logger.Error("sandbox execution failed", zap.Error(err))
+		s.logger.Error("sandbox execution failed", 
+			zap.Error(err),
+			zap.String("language", language),
+			zap.String("code", code))
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				mcp.TextContent{

@@ -112,9 +112,6 @@ func (d *DockerExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 		cmdArgs = append(cmdArgs, "--network", "bridge")
 	}
 
-	// Add the image and command to execute
-	cmdArgs = append(cmdArgs, imageName)
-
 	// Add environment variables based on language
 	envVars, err := d.getEnvironmentVariables(req.Language)
 	if err != nil {
@@ -124,6 +121,9 @@ func (d *DockerExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 	for key, value := range envVars {
 		cmdArgs = append(cmdArgs, "-e", fmt.Sprintf("%s=%s", key, value))
 	}
+
+	// Add the image
+	cmdArgs = append(cmdArgs, imageName)
 
 	// Determine the command to run based on language
 	runCmd, err := d.getRunCommand(req.Language)
