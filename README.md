@@ -122,3 +122,78 @@ sandbox:
 ```
 
 Note: Local executor is insecure and only for development purposes.
+
+## Development Tools
+
+### Pre-commit Hooks
+
+This repository uses pre-commit hooks to ensure code quality and consistency. To set up the pre-commit hooks:
+
+1. Install pre-commit:
+   ```bash
+   pip install pre-commit
+   ```
+
+2. Install the git hooks:
+   ```bash
+   ./install-hooks.sh
+   ```
+   
+   Or install manually:
+   ```bash
+   pre-commit install
+   ```
+
+The hooks will automatically run before each commit to:
+- Format Go code with `gofmt`
+- Format imports with `goimports`
+- Run `go vet` for error checking
+- Run `golangci-lint` for code linting
+- Run all tests with `go test`
+- Ensure the code builds successfully
+
+To run the hooks manually on all files:
+```bash
+pre-commit run --all-files
+```
+
+### Code Quality and Testing
+
+Before submitting pull requests, please ensure:
+
+1. All tests pass:
+   ```bash
+   go test ./...
+   ```
+
+2. The code builds successfully:
+   ```bash
+   go build ./cmd/server
+   ```
+
+3. Code is properly formatted:
+   ```bash
+   gofmt -s -w .
+   goimports -w -local github.com/isdmx/codebox .
+   ```
+
+4. Linting passes:
+   ```bash
+   golangci-lint run
+   ```
+
+### Dependency Management
+
+Dependencies are managed with Go modules. To add a new dependency:
+```bash
+go get github.com/username/package@version
+go mod tidy
+```
+
+To update dependencies:
+```bash
+go get -u
+go mod tidy
+```
+
+Automatic dependency updates are handled by Dependabot.

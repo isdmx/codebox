@@ -1,0 +1,53 @@
+# Dependabot configuration file
+version: 2
+updates:
+  # Maintain dependencies for Go modules
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: daily
+      time: "07:00"
+      timezone: Europe/Moscow
+    open-pull-requests-limit: 10
+    assignees:
+      - "iliadmitriev"
+    labels:
+      - "dependencies"
+      - "go"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      development-dependencies:
+        patterns:
+          - "*test*"
+          - "*mock*"
+          - "golangci-lint*"
+          - "github.com/stretchr/testify"
+      production-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "*test*"
+          - "*mock*"
+          - "golangci-lint*"
+          - "github.com/stretchr/testify"
+
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: Europe/Moscow
+    open-pull-requests-limit: 5
+    assignees:
+      - "iliadmitriev"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
