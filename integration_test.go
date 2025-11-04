@@ -34,7 +34,7 @@ func TestIntegrationConfigLoggerSandbox(t *testing.T) {
 				Mode:  "development",
 				Level: "debug",
 			},
-			Languages: config.LanguageConfig{},
+			Languages: map[string]config.Language{},
 		}
 
 		// Create logger using config
@@ -65,8 +65,8 @@ func TestIntegrationConfigLoggerSandbox(t *testing.T) {
 				Mode:  "development",
 				Level: "info",
 			},
-			Languages: config.LanguageConfig{
-				Python: config.PythonConfig{
+			Languages: map[string]config.Language{
+				"python": {
 					Image:       "python:3.11-slim",
 					Environment: map[string]string{"PYTHONPATH": "/workdir"},
 				},
@@ -106,17 +106,17 @@ func TestIntegrationConfigLoggerSandbox(t *testing.T) {
 				Mode:  "development",
 				Level: "info",
 			},
-			Languages: config.LanguageConfig{
-				Python: config.PythonConfig{
+			Languages: map[string]config.Language{
+				"python": {
 					Environment: map[string]string{},
 				},
-				NodeJS: config.NodeJSConfig{
+				"nodejs": {
 					Environment: map[string]string{},
 				},
-				Go: config.GoConfig{
+				"go": {
 					Environment: map[string]string{},
 				},
-				CPP: config.CPPConfig{
+				"cpp": {
 					Environment: map[string]string{},
 				},
 			},
@@ -158,8 +158,8 @@ func TestIntegrationSandboxExecution(t *testing.T) {
 				NetworkEnabled:     false,
 				EnableLocalBackend: true,
 			},
-			Languages: config.LanguageConfig{
-				Python: config.PythonConfig{
+			Languages: map[string]config.Language{
+				"python": {
 					Environment: map[string]string{},
 				},
 			},
@@ -183,17 +183,17 @@ func TestIntegrationSandboxExecution(t *testing.T) {
 				NetworkEnabled:     false,
 				EnableLocalBackend: true,
 			},
-			Languages: config.LanguageConfig{
-				Python: config.PythonConfig{
+			Languages: map[string]config.Language{
+				"python": {
 					Environment: map[string]string{},
 				},
-				NodeJS: config.NodeJSConfig{
+				"nodejs": {
 					Environment: map[string]string{},
 				},
-				Go: config.GoConfig{
+				"go": {
 					Environment: map[string]string{},
 				},
-				CPP: config.CPPConfig{
+				"cpp": {
 					Environment: map[string]string{},
 				},
 			},

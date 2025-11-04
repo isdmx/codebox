@@ -11,6 +11,9 @@
 package main
 
 import (
+	"context"
+	"fmt"
+
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 	"go.uber.org/zap"
@@ -39,27 +42,18 @@ func main() {
 		),
 
 		// Start the appropriate transport based on config
-		fx.Invoke(
-			func(cfg *config.Config, server *mcpserver.MCPServer) {
-				switch cfg.Server.Transport {
-				case "stdio":
-					// Use fx to run this as a background task
+		fx.Invoke(func(lc fx.Lifecycle, cfg *config.Config, server *mcpserver.MCPServer, log *zap.Logger) {
+			lc.Append(fx.Hook{
+				OnStart: func(_ context.Context) error {
 					go func() {
-						if err := server.ServeStdio(); err != nil {
-							panic(err)
+						if err := startServer(cfg, server); err != nil {
+							log.Error("Failed to start server", zap.Error(err))
 						}
 					}()
-				case "http":
-					go func() {
-						if err := server.ServeHTTP(); err != nil {
-							panic(err)
-						}
-					}()
-				default:
-					panic("unsupported transport: " + cfg.Server.Transport)
-				}
-			},
-		),
+					return nil
+				},
+			})
+		}),
 
 		// Use the application logger for fx logs
 		fx.WithLogger(func(log *zap.Logger) fxevent.Logger {
@@ -69,4 +63,15 @@ func main() {
 
 	// Start the application
 	app.Run()
+}
+
+func startServer(cfg *config.Config, server *mcpserver.MCPServer) error {
+	switch cfg.Server.Transport {
+	case "stdio":
+		return server.ServeStdio()
+	case "http":
+		return server.ServeHTTP()
+	default:
+		return fmt.Errorf("unsupported transport: %s", cfg.Server.Transport)
+	}
 }

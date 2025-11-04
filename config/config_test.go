@@ -27,6 +27,11 @@ func TestConfigValidation(t *testing.T) {
 				Mode:  "production",
 				Level: "info",
 			},
+			Languages: map[string]Language{
+				"python": {
+					Image: "python:3.11-slim",
+				},
+			},
 		}
 
 		err := cfg.validate()

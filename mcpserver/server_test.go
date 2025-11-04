@@ -41,7 +41,7 @@ func TestNewMCPServer(t *testing.T) {
 			Mode:  "production",
 			Level: "info",
 		},
-		Languages: config.LanguageConfig{},
+		Languages: map[string]config.Language{},
 	}
 	mockExecutor := &MockSandboxExecutor{}
 
@@ -61,7 +61,7 @@ func TestServerCreation(t *testing.T) {
 		Server:    config.ServerConfig{Transport: "stdio", HTTPPort: 8080},
 		Sandbox:   config.SandboxConfig{TimeoutSec: 30, MemoryMB: 512, NetworkEnabled: false, MaxArtifactSizeMB: 20},
 		Logging:   config.LoggingConfig{Mode: "production", Level: "info"},
-		Languages: config.LanguageConfig{},
+		Languages: map[string]config.Language{},
 	}
 
 	mockExecutor := &MockSandboxExecutor{

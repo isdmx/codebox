@@ -24,45 +24,45 @@ func NewExecutor(logger *zap.Logger, cfg *config.Config) (SandboxExecutor, error
 
 	// Create language environments from config
 	langEnvs := &LanguageEnvironments{
-		Python: cfg.Languages.Python.Environment,
-		NodeJS: cfg.Languages.NodeJS.Environment,
-		Go:     cfg.Languages.Go.Environment,
-		CPP:    cfg.Languages.CPP.Environment,
+		Python: cfg.Languages["python"].Environment,
+		NodeJS: cfg.Languages["nodejs"].Environment,
+		Go:     cfg.Languages["go"].Environment,
+		CPP:    cfg.Languages["cpp"].Environment,
 	}
 
 	// Create language configs with exclude patterns
 	langConfigs := &LanguageConfigs{
 		Python: LanguageConfig{
-			ExcludePatterns: cfg.Languages.Python.ExcludePatterns,
+			ExcludePatterns: cfg.Languages["python"].ExcludePatterns,
 		},
 		NodeJS: LanguageConfig{
-			ExcludePatterns: cfg.Languages.NodeJS.ExcludePatterns,
+			ExcludePatterns: cfg.Languages["nodejs"].ExcludePatterns,
 		},
 		Go: LanguageConfig{
-			ExcludePatterns: cfg.Languages.Go.ExcludePatterns,
+			ExcludePatterns: cfg.Languages["go"].ExcludePatterns,
 		},
 		CPP: LanguageConfig{
-			ExcludePatterns: cfg.Languages.CPP.ExcludePatterns,
+			ExcludePatterns: cfg.Languages["cpp"].ExcludePatterns,
 		},
 	}
 
 	// Create language code configs with prefix and postfix code
 	langCodeConfigs := &LanguageCodeConfigs{
 		Python: LanguageCodeConfig{
-			PrefixCode:  cfg.Languages.Python.PrefixCode,
-			PostfixCode: cfg.Languages.Python.PostfixCode,
+			PrefixCode:  cfg.Languages["python"].PrefixCode,
+			PostfixCode: cfg.Languages["python"].PostfixCode,
 		},
 		NodeJS: LanguageCodeConfig{
-			PrefixCode:  cfg.Languages.NodeJS.PrefixCode,
-			PostfixCode: cfg.Languages.NodeJS.PostfixCode,
+			PrefixCode:  cfg.Languages["nodejs"].PrefixCode,
+			PostfixCode: cfg.Languages["nodejs"].PostfixCode,
 		},
 		Go: LanguageCodeConfig{
-			PrefixCode:  cfg.Languages.Go.PrefixCode,
-			PostfixCode: cfg.Languages.Go.PostfixCode,
+			PrefixCode:  cfg.Languages["go"].PrefixCode,
+			PostfixCode: cfg.Languages["go"].PostfixCode,
 		},
 		CPP: LanguageCodeConfig{
-			PrefixCode:  cfg.Languages.CPP.PrefixCode,
-			PostfixCode: cfg.Languages.CPP.PostfixCode,
+			PrefixCode:  cfg.Languages["cpp"].PrefixCode,
+			PostfixCode: cfg.Languages["cpp"].PostfixCode,
 		},
 	}
 

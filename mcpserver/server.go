@@ -53,7 +53,7 @@ func New(cfg *config.Config, logger *zap.Logger, sandboxExec sandbox.SandboxExec
 	}
 
 	// Log configuration parameters on startup
-	logger.Info("configuration loaded",
+	fields := []zap.Field{
 		zap.String("server.transport", s.config.Server.Transport),
 		zap.Int("server.http_port", s.config.Server.HTTPPort),
 		zap.String("sandbox.backend", s.config.Sandbox.Backend),
@@ -62,11 +62,11 @@ func New(cfg *config.Config, logger *zap.Logger, sandboxExec sandbox.SandboxExec
 		zap.Int("sandbox.max_artifact_size_mb", s.config.Sandbox.MaxArtifactSizeMB),
 		zap.Bool("sandbox.network_enabled", s.config.Sandbox.NetworkEnabled),
 		zap.Bool("sandbox.enable_local_backend", s.config.Sandbox.EnableLocalBackend),
-		zap.String("languages.python.image", s.config.Languages.Python.Image),
-		zap.String("languages.nodejs.image", s.config.Languages.NodeJS.Image),
-		zap.String("languages.go.image", s.config.Languages.Go.Image),
-		zap.String("languages.cpp.image", s.config.Languages.CPP.Image),
-	)
+	}
+	for lang, langCfg := range s.config.Languages {
+		fields = append(fields, zap.String(fmt.Sprintf("languages.%s.image", lang), langCfg.Image))
+	}
+	logger.Info("configuration loaded", fields...)
 
 	// Create the MCP server
 	s.mcpServer = server.NewMCPServer("codebox-executor", "A secure code execution server")
@@ -97,16 +97,10 @@ func (s *MCPServer) handleExecuteSandboxedCodeStructured(
 	s.logger.Info("code execution requested")
 
 	// Validate language
-	validLanguages := map[string]bool{
-		"python": true,
-		"nodejs": true,
-		"go":     true,
-		"cpp":    true,
-	}
-	if !validLanguages[args.Language] {
+	if _, ok := s.config.Languages[args.Language]; !ok {
 		return ExecuteResponse{
 			Success: false,
-			Error:   fmt.Sprintf("invalid language: %s, must be one of: python, nodejs, go, cpp", args.Language),
+			Error:   fmt.Sprintf("invalid language: %s", args.Language),
 		}, nil
 	}
 
