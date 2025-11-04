@@ -19,6 +19,7 @@ type Config struct {
 	Server    ServerConfig   `mapstructure:"server"`
 	Sandbox   SandboxConfig  `mapstructure:"sandbox"`
 	Languages LanguageConfig `mapstructure:"languages"`
+	Logging   LoggingConfig  `mapstructure:"logging"`
 }
 
 // ServerConfig holds server configuration
@@ -77,6 +78,12 @@ type CPPConfig struct {
 	Environment map[string]string `mapstructure:"environment"`
 }
 
+// LoggingConfig holds logging configuration
+type LoggingConfig struct {
+	Mode  string `mapstructure:"mode"`
+	Level string `mapstructure:"level"`
+}
+
 // New loads and validates the application configuration
 func New() (*Config, error) {
 	viper.SetConfigName("config")
@@ -130,6 +137,10 @@ signal.alarm(10)
 	viper.SetDefault("languages.cpp.image", "gcc:13")
 	viper.SetDefault("languages.cpp.build_cmd", "g++ -std=c++17 -O2 -o /workdir/app /workdir/main.cpp")
 	viper.SetDefault("languages.cpp.run_cmd", "/workdir/app")
+
+	// Logging defaults
+	viper.SetDefault("logging.mode", "production")
+	viper.SetDefault("logging.level", "info")
 
 	if configReadErr := viper.ReadInConfig(); configReadErr != nil {
 		if _, ok := configReadErr.(viper.ConfigFileNotFoundError); !ok {
@@ -262,6 +273,25 @@ func (c *Config) validate() error {
 
 	if !supportedBackends[c.Sandbox.Backend] {
 		return fmt.Errorf("unsupported sandbox.backend: %s", c.Sandbox.Backend)
+	}
+
+	// Validate logging configuration
+	if c.Logging.Mode != "production" && c.Logging.Mode != "development" {
+		return fmt.Errorf("invalid logging.mode: %s, must be 'production' or 'development'", c.Logging.Mode)
+	}
+
+	logLevel := map[string]bool{
+		"debug":  true,
+		"info":   true,
+		"warn":   true,
+		"error":  true,
+		"dpanic": true,
+		"panic":  true,
+		"fatal":  true,
+	}
+
+	if !logLevel[c.Logging.Level] {
+		return fmt.Errorf("invalid logging.level: %s", c.Logging.Level)
 	}
 
 	return nil

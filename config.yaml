@@ -61,3 +61,7 @@ languages:
     environment:
       LANG: "C.UTF-8"
       LC_ALL: "C.UTF-8"
+
+logging:
+  mode: "development" # "production", "development"
+  level: "debug" # debug, info, warn, error, dpanic, panic, fatal

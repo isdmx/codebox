@@ -28,8 +28,10 @@ func main() {
 			// Config
 			config.New,
 
-			// Logger
-			logger.New,
+			// Logger with configuration
+			func(cfg *config.Config) (*zap.Logger, error) {
+				return logger.New(cfg.Logging.Mode, cfg.Logging.Level)
+			},
 
 			// Sandbox executor based on config
 			func(cfg *config.Config, logger *zap.Logger) (sandbox.SandboxExecutor, error) {
