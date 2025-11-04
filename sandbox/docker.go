@@ -18,11 +18,12 @@ import (
 
 // DockerExecutor implements SandboxExecutor using Docker
 type DockerExecutor struct {
-	logger    *zap.Logger
-	config    *Config
-	langEnvs  *LanguageEnvironments
-	cmdRunner CommandRunner
-	fs        FileSystem
+	logger      *zap.Logger
+	config      *Config
+	langEnvs    *LanguageEnvironments
+	langConfigs *LanguageConfigs
+	cmdRunner   CommandRunner
+	fs          FileSystem
 }
 
 // Config holds configuration for the Docker executor
@@ -50,14 +51,22 @@ func WithDockerFileSystem(fs FileSystem) DockerExecutorOption {
 	}
 }
 
+// WithDockerLanguageConfigs sets the LanguageConfigs for DockerExecutor
+func WithDockerLanguageConfigs(langConfigs *LanguageConfigs) DockerExecutorOption {
+	return func(d *DockerExecutor) {
+		d.langConfigs = langConfigs
+	}
+}
+
 // NewDockerExecutor creates a new DockerExecutor with default implementations and optional interfaces
 func NewDockerExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments, opts ...DockerExecutorOption) *DockerExecutor {
 	executor := &DockerExecutor{
-		logger:    logger,
-		config:    config,
-		langEnvs:  langEnvs,
-		cmdRunner: &RealCommandRunner{}, // Default implementation
-		fs:        &RealFileSystem{},    // Default implementation
+		logger:      logger,
+		config:      config,
+		langEnvs:    langEnvs,
+		langConfigs: &LanguageConfigs{},   // Default empty, can be set via options
+		cmdRunner:   &RealCommandRunner{}, // Default implementation
+		fs:          &RealFileSystem{},    // Default implementation
 	}
 
 	// Apply options
@@ -194,8 +203,29 @@ func (d *DockerExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 		return ExecuteResult{}, fmt.Errorf("failed to execute container: %w", err)
 	}
 
-	// Create artifacts tar from the workdir
-	artifactsTar, err := d.createTarFromDir(workdirPath)
+	// Determine exclude patterns based on language
+	var excludePatterns []string
+	switch req.Language {
+	case LanguagePython:
+		if d.langConfigs != nil {
+			excludePatterns = d.langConfigs.Python.ExcludePatterns
+		}
+	case LanguageNodeJS:
+		if d.langConfigs != nil {
+			excludePatterns = d.langConfigs.NodeJS.ExcludePatterns
+		}
+	case LanguageGo:
+		if d.langConfigs != nil {
+			excludePatterns = d.langConfigs.Go.ExcludePatterns
+		}
+	case LanguageCPP:
+		if d.langConfigs != nil {
+			excludePatterns = d.langConfigs.CPP.ExcludePatterns
+		}
+	}
+
+	// Create artifacts tar from the workdir with exclude patterns
+	artifactsTar, err := d.createTarFromDirWithExcludes(workdirPath, excludePatterns)
 	if err != nil {
 		return ExecuteResult{}, fmt.Errorf("failed to create artifacts tar: %w", err)
 	}
@@ -249,6 +279,6 @@ func (d *DockerExecutor) extractTarToDir(tarData []byte, destDir string) error {
 	return ExtractTarToDir(d.fs, tarData, destDir)
 }
 
-func (*DockerExecutor) createTarFromDir(srcDir string) ([]byte, error) {
-	return CreateTarFromDir(srcDir)
+func (*DockerExecutor) createTarFromDirWithExcludes(srcDir string, excludePatterns []string) ([]byte, error) {
+	return CreateTarFromDirWithExcludes(srcDir, excludePatterns)
 }

@@ -31,6 +31,23 @@ languages:
     environment:
       PYTHONPATH: "/workdir"
       PYTHONIOENCODING: "utf-8"
+    exclude_patterns:
+      - "__pycache__/"
+      - "*.pyc"
+      - "*.pyo"
+      - ".pytest_cache/"
+      - ".coverage"
+      - "htmlcov/"
+      - "*.egg-info/"
+      - ".tox/"
+      - ".nox/"
+      - ".git/"
+      - ".svn/"
+      - ".hg/"
+      - "main.py"  # exclude source code
+      - "*.o"      # exclude object files
+      - "*.so"     # exclude shared objects
+      - "*.a"      # exclude archive files
 
   nodejs:
     image: "node:20-alpine"
@@ -45,6 +62,26 @@ languages:
     environment:
       NODE_PATH: "/workdir"
       NODE_ENV: "production"
+    exclude_patterns:
+      - "node_modules/"
+      - "npm-debug.log*"
+      - "yarn-debug.log*"
+      - "yarn-error.log*"
+      - ".npm/"
+      - ".yarn/"
+      - ".git/"
+      - ".svn/"
+      - ".hg/"
+      - "dist/"
+      - "build/"
+      - ".next/"
+      - ".nuxt/"
+      - "coverage/"
+      - ".vscode/"
+      - ".idea/"
+      - "index.js"  # exclude source code
+      - "*.js.map"  # exclude source maps
+      - "*.out"     # exclude compiled output
 
   go:
     image: "golang:1.23-alpine"
@@ -53,6 +90,26 @@ languages:
     environment:
       GOCACHE: "/tmp/go-build"
       GOMODCACHE: "/tmp/go-mod"
+    exclude_patterns:
+      - "*.o"
+      - "*.a"
+      - "*.so"
+      - "*.out"
+      - "*.exe"
+      - "go.sum"
+      - "go.mod"
+      - ".git/"
+      - ".svn/"
+      - ".hg/"
+      - "vendor/"
+      - "bin/"
+      - "pkg/"
+      - "target/"
+      - ".vscode/"
+      - ".idea/"
+      - "main.go"     # exclude source code
+      - "app"         # exclude built binary
+      - "go-build/"   # exclude build cache
 
   cpp:
     image: "gcc:13"
@@ -61,6 +118,30 @@ languages:
     environment:
       LANG: "C.UTF-8"
       LC_ALL: "C.UTF-8"
+    exclude_patterns:
+      - "*.o"
+      - "*.a"
+      - "*.so"
+      - "*.out"
+      - "*.exe"
+      - "*.obj"
+      - "a.out"
+      - "a.exe"
+      - "app"         # exclude built binary
+      - "main.cpp"    # exclude source code
+      - ".git/"
+      - ".svn/"
+      - ".hg/"
+      - "build/"
+      - "cmake-build*/"
+      - "bin/"
+      - "obj/"
+      - ".vscode/"
+      - ".idea/"
+      - "lib/"        # exclude built libraries
+      - "*.dylib"     # exclude dylibs (macOS)
+      - "*.dll"       # exclude dlls (Windows)
+      - "*.so.*"      # exclude versioned shared objects
 
 logging:
   mode: "development" # "production", "development"

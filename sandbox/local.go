@@ -20,11 +20,12 @@ import (
 
 // LocalExecutor implements SandboxExecutor using local execution (for development only)
 type LocalExecutor struct {
-	logger    *zap.Logger
-	config    *Config
-	langEnvs  *LanguageEnvironments
-	cmdRunner CommandRunner
-	fs        FileSystem
+	logger      *zap.Logger
+	config      *Config
+	langEnvs    *LanguageEnvironments
+	langConfigs *LanguageConfigs
+	cmdRunner   CommandRunner
+	fs          FileSystem
 }
 
 // LocalExecutorOption defines a functional option for LocalExecutor
@@ -44,14 +45,22 @@ func WithLocalFileSystem(fs FileSystem) LocalExecutorOption {
 	}
 }
 
+// WithLocalLanguageConfigs sets the LanguageConfigs for LocalExecutor
+func WithLocalLanguageConfigs(langConfigs *LanguageConfigs) LocalExecutorOption {
+	return func(l *LocalExecutor) {
+		l.langConfigs = langConfigs
+	}
+}
+
 // NewLocalExecutor creates a new LocalExecutor with default implementations and optional interfaces
 func NewLocalExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments, opts ...LocalExecutorOption) *LocalExecutor {
 	executor := &LocalExecutor{
-		logger:    logger,
-		config:    config,
-		langEnvs:  langEnvs,
-		cmdRunner: &RealCommandRunner{}, // Default implementation
-		fs:        &RealFileSystem{},    // Default implementation
+		logger:      logger,
+		config:      config,
+		langEnvs:    langEnvs,
+		langConfigs: &LanguageConfigs{},   // Default empty, can be set via options
+		cmdRunner:   &RealCommandRunner{}, // Default implementation
+		fs:          &RealFileSystem{},    // Default implementation
 	}
 
 	// Apply options
@@ -186,8 +195,29 @@ func (l *LocalExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execut
 		}
 	}
 
-	// Create artifacts tar from the workdir
-	artifactsTar, err := l.createTarFromDir(workdirPath)
+	// Determine exclude patterns based on language
+	var excludePatterns []string
+	switch req.Language {
+	case LanguagePython:
+		if l.langConfigs != nil {
+			excludePatterns = l.langConfigs.Python.ExcludePatterns
+		}
+	case LanguageNodeJS:
+		if l.langConfigs != nil {
+			excludePatterns = l.langConfigs.NodeJS.ExcludePatterns
+		}
+	case LanguageGo:
+		if l.langConfigs != nil {
+			excludePatterns = l.langConfigs.Go.ExcludePatterns
+		}
+	case LanguageCPP:
+		if l.langConfigs != nil {
+			excludePatterns = l.langConfigs.CPP.ExcludePatterns
+		}
+	}
+
+	// Create artifacts tar from the workdir with exclude patterns
+	artifactsTar, err := l.createTarFromDirWithExcludes(workdirPath, excludePatterns)
 	if err != nil {
 		return ExecuteResult{}, fmt.Errorf("failed to create artifacts tar: %w", err)
 	}
@@ -222,8 +252,8 @@ func (l *LocalExecutor) extractTarToDir(tarData []byte, destDir string) error {
 	return ExtractTarToDir(l.fs, tarData, destDir)
 }
 
-func (*LocalExecutor) createTarFromDir(srcDir string) ([]byte, error) {
-	return CreateTarFromDir(srcDir)
+func (*LocalExecutor) createTarFromDirWithExcludes(srcDir string, excludePatterns []string) ([]byte, error) {
+	return CreateTarFromDirWithExcludes(srcDir, excludePatterns)
 }
 
 func (l *LocalExecutor) getEnvironmentVariables(language string) (map[string]string, error) {

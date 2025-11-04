@@ -30,13 +30,44 @@ func NewExecutor(logger *zap.Logger, cfg *config.Config) (SandboxExecutor, error
 		CPP:    cfg.Languages.CPP.Environment,
 	}
 
+	// Create language configs with exclude patterns
+	langConfigs := &LanguageConfigs{
+		Python: LanguageConfig{
+			ExcludePatterns: cfg.Languages.Python.ExcludePatterns,
+		},
+		NodeJS: LanguageConfig{
+			ExcludePatterns: cfg.Languages.NodeJS.ExcludePatterns,
+		},
+		Go: LanguageConfig{
+			ExcludePatterns: cfg.Languages.Go.ExcludePatterns,
+		},
+		CPP: LanguageConfig{
+			ExcludePatterns: cfg.Languages.CPP.ExcludePatterns,
+		},
+	}
+
 	switch backend := cfg.Sandbox.Backend; backend {
 	case "docker":
-		return NewDockerExecutor(logger, &executorConfig, langEnvs), nil
+		return NewDockerExecutor(
+			logger,
+			&executorConfig,
+			langEnvs,
+			WithDockerLanguageConfigs(langConfigs),
+		), nil
 	case "podman":
-		return NewPodmanExecutor(logger, &executorConfig, langEnvs), nil
+		return NewPodmanExecutor(
+			logger,
+			&executorConfig,
+			langEnvs,
+			WithPodmanLanguageConfigs(langConfigs),
+		), nil
 	case "local":
-		return NewLocalExecutor(logger, &executorConfig, langEnvs), nil
+		return NewLocalExecutor(
+			logger,
+			&executorConfig,
+			langEnvs,
+			WithLocalLanguageConfigs(langConfigs),
+		), nil
 	default:
 		return nil, fmt.Errorf("unsupported backend: %s", backend)
 	}

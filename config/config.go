@@ -48,34 +48,38 @@ type LanguageConfig struct {
 
 // PythonConfig holds Python-specific configuration
 type PythonConfig struct {
-	Image       string            `mapstructure:"image"`
-	PrefixCode  string            `mapstructure:"prefix_code"`
-	PostfixCode string            `mapstructure:"postfix_code"`
-	Environment map[string]string `mapstructure:"environment"`
+	Image           string            `mapstructure:"image"`
+	PrefixCode      string            `mapstructure:"prefix_code"`
+	PostfixCode     string            `mapstructure:"postfix_code"`
+	Environment     map[string]string `mapstructure:"environment"`
+	ExcludePatterns []string          `mapstructure:"exclude_patterns"`
 }
 
 // NodeJSConfig holds Node.js-specific configuration
 type NodeJSConfig struct {
-	Image       string            `mapstructure:"image"`
-	PrefixCode  string            `mapstructure:"prefix_code"`
-	PostfixCode string            `mapstructure:"postfix_code"`
-	Environment map[string]string `mapstructure:"environment"`
+	Image           string            `mapstructure:"image"`
+	PrefixCode      string            `mapstructure:"prefix_code"`
+	PostfixCode     string            `mapstructure:"postfix_code"`
+	Environment     map[string]string `mapstructure:"environment"`
+	ExcludePatterns []string          `mapstructure:"exclude_patterns"`
 }
 
 // GoConfig holds Go-specific configuration
 type GoConfig struct {
-	Image       string            `mapstructure:"image"`
-	BuildCmd    string            `mapstructure:"build_cmd"`
-	RunCmd      string            `mapstructure:"run_cmd"`
-	Environment map[string]string `mapstructure:"environment"`
+	Image           string            `mapstructure:"image"`
+	BuildCmd        string            `mapstructure:"build_cmd"`
+	RunCmd          string            `mapstructure:"run_cmd"`
+	Environment     map[string]string `mapstructure:"environment"`
+	ExcludePatterns []string          `mapstructure:"exclude_patterns"`
 }
 
 // CPPConfig holds C++-specific configuration
 type CPPConfig struct {
-	Image       string            `mapstructure:"image"`
-	BuildCmd    string            `mapstructure:"build_cmd"`
-	RunCmd      string            `mapstructure:"run_cmd"`
-	Environment map[string]string `mapstructure:"environment"`
+	Image           string            `mapstructure:"image"`
+	BuildCmd        string            `mapstructure:"build_cmd"`
+	RunCmd          string            `mapstructure:"run_cmd"`
+	Environment     map[string]string `mapstructure:"environment"`
+	ExcludePatterns []string          `mapstructure:"exclude_patterns"`
 }
 
 // LoggingConfig holds logging configuration
@@ -122,21 +126,90 @@ signal.alarm(10)
 `
 	viper.SetDefault("languages.python.prefix_code", pythonPrefixCode)
 	viper.SetDefault("languages.python.postfix_code", "\nsignal.alarm(0)")
+	viper.SetDefault("languages.python.exclude_patterns", []string{
+		"__pycache__/",
+		"*.pyc",
+		"*.pyo",
+		".pytest_cache/",
+		".coverage",
+		"htmlcov/",
+		".coverage.*",
+		"*.egg-info/",
+		".tox/",
+		".nox/",
+		".git/",
+		".svn/",
+		".hg/",
+	})
 
 	// Node.js defaults
 	viper.SetDefault("languages.nodejs.image", "node:20-alpine")
 	viper.SetDefault("languages.nodejs.prefix_code", "// Timeout logic would be implemented here\n")
 	viper.SetDefault("languages.nodejs.postfix_code", "")
+	viper.SetDefault("languages.nodejs.exclude_patterns", []string{
+		"node_modules/",
+		"npm-debug.log*",
+		"yarn-debug.log*",
+		"yarn-error.log*",
+		".npm/",
+		".yarn/",
+		".git/",
+		".svn/",
+		".hg/",
+		"dist/",
+		"build/",
+		".next/",
+		".nuxt/",
+		"coverage/",
+		".vscode/",
+		".idea/",
+	})
 
 	// Go defaults
 	viper.SetDefault("languages.go.image", "golang:1.23-alpine")
 	viper.SetDefault("languages.go.run_cmd", "/workdir/app")
 	viper.SetDefault("languages.go.build_cmd", "go build -o /workdir/app /workdir/main.go")
+	viper.SetDefault("languages.go.exclude_patterns", []string{
+		"*.o",
+		"*.a",
+		"*.so",
+		"*.out",
+		"go.sum",
+		"go.mod",
+		".git/",
+		".svn/",
+		".hg/",
+		"vendor/",
+		"bin/",
+		"pkg/",
+		"target/",
+		".vscode/",
+		".idea/",
+	})
 
 	// C++ defaults
 	viper.SetDefault("languages.cpp.image", "gcc:13")
 	viper.SetDefault("languages.cpp.build_cmd", "g++ -std=c++17 -O2 -o /workdir/app /workdir/main.cpp")
 	viper.SetDefault("languages.cpp.run_cmd", "/workdir/app")
+	viper.SetDefault("languages.cpp.exclude_patterns", []string{
+		"*.o",
+		"*.a",
+		"*.so",
+		"*.out",
+		"*.exe",
+		"*.obj",
+		"a.out",
+		"a.exe",
+		".git/",
+		".svn/",
+		".hg/",
+		"build/",
+		"cmake-build*/",
+		"bin/",
+		"obj/",
+		".vscode/",
+		".idea/",
+	})
 
 	// Logging defaults
 	viper.SetDefault("logging.mode", "production")

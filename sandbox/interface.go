@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -134,8 +135,8 @@ const (
 
 // File permission and size constants
 const (
-	DirPermission      = 0755
-	FilePermission     = 0600
+	DirPermission      = 0o755
+	FilePermission     = 0o600
 	BytesPerKB         = 1024
 	MaxArtifactSizeMul = 1024 * 1024 // 1 MB multiplier
 )
@@ -320,8 +321,26 @@ func ExtractTarToDir(fs FileSystem, tarData []byte, destDir string) error {
 	return nil
 }
 
+// LanguageConfig holds configuration for a specific language including exclude patterns
+type LanguageConfig struct {
+	ExcludePatterns []string
+}
+
+// LanguageConfigs holds configurations for different languages
+type LanguageConfigs struct {
+	Python LanguageConfig
+	NodeJS LanguageConfig
+	Go     LanguageConfig
+	CPP    LanguageConfig
+}
+
 // CreateTarFromDir creates a tar.gz archive from a directory
 func CreateTarFromDir(srcDir string) ([]byte, error) {
+	return CreateTarFromDirWithExcludes(srcDir, nil)
+}
+
+// CreateTarFromDirWithExcludes creates a tar.gz archive from a directory with excluded patterns
+func CreateTarFromDirWithExcludes(srcDir string, excludePatterns []string) ([]byte, error) {
 	var buf bytes.Buffer
 	gzipWriter := gzip.NewWriter(&buf)
 	tarWriter := tar.NewWriter(gzipWriter)
@@ -331,13 +350,7 @@ func CreateTarFromDir(srcDir string) ([]byte, error) {
 			return err
 		}
 
-		// Create a header for the file
-		header, err := tar.FileInfoHeader(fi, file)
-		if err != nil {
-			return err
-		}
-
-		// Update the name to be relative to the source directory
+		// Get the relative path from the source directory
 		relPath, err := filepath.Rel(srcDir, file)
 		if err != nil {
 			return err
@@ -345,6 +358,23 @@ func CreateTarFromDir(srcDir string) ([]byte, error) {
 		if relPath == "." {
 			return nil
 		}
+
+		// Check if the file should be excluded based on patterns
+		if shouldExcludeFile(relPath, excludePatterns) {
+			if fi.IsDir() {
+				// If it's a directory and matches an exclude pattern, skip the entire directory
+				return filepath.SkipDir
+			}
+			// If it's a file that matches an exclude pattern, skip it
+			return nil
+		}
+
+		// Create a header for the file
+		header, err := tar.FileInfoHeader(fi, file)
+		if err != nil {
+			return err
+		}
+
 		header.Name = relPath
 
 		if err := tarWriter.WriteHeader(header); err != nil {
@@ -366,7 +396,6 @@ func CreateTarFromDir(srcDir string) ([]byte, error) {
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -380,4 +409,64 @@ func CreateTarFromDir(srcDir string) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+// shouldExcludeFile checks if a file should be excluded based on the exclude patterns
+func shouldExcludeFile(relPath string, excludePatterns []string) bool {
+	for _, pattern := range excludePatterns {
+		// Special case: if relPath and pattern are exactly the same and pattern doesn't have a trailing slash,
+		// skip this pattern for common directory names to avoid matching directory entries with file patterns
+		if relPath == pattern && !strings.HasSuffix(pattern, "/") {
+			// Check if this might be a directory name (common directory names) and skip in that case
+			if isCommonDirectoryName(pattern) {
+				continue
+			}
+		}
+
+		// If pattern ends with '/', it's a directory pattern
+		if strings.HasSuffix(pattern, "/") {
+			dirPattern := strings.TrimSuffix(pattern, "/")
+			// Check if the relative path matches the directory exactly or starts with it followed by a slash
+			if relPath == dirPattern || strings.HasPrefix(relPath, dirPattern+"/") {
+				return true
+			}
+			// Also check if the directory appears anywhere in the path (e.g. "frontend/node_modules/file.js" contains "node_modules/")
+			// Split the path and check if any directory component matches the pattern
+			relPathParts := strings.Split(relPath, "/")
+			if slices.Contains(relPathParts, dirPattern) {
+				return true
+			}
+		} else {
+			// Regular pattern (not directory-specific) - match against the basename
+			if match, err := filepath.Match(pattern, filepath.Base(relPath)); err == nil && match {
+				return true
+			}
+			// Also match if the entire path matches the pattern exactly
+			if match, err := filepath.Match(pattern, relPath); err == nil && match {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// isCommonDirectoryName checks if a name is commonly used for directories
+func isCommonDirectoryName(name string) bool {
+	// Common directory names that should not be matched by non-directory patterns
+	commonDirNames := map[string]bool{
+		"node_modules":  true,
+		"__pycache__":   true,
+		".git":          true,
+		".svn":          true,
+		".hg":           true,
+		"build":         true,
+		"dist":          true,
+		"target":        true,
+		"bin":           true,
+		"obj":           true,
+		"vendor":        true,
+		".pytest_cache": true,
+	}
+
+	return commonDirNames[name]
 }

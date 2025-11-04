@@ -19,11 +19,12 @@ import (
 
 // PodmanExecutor implements SandboxExecutor using Podman
 type PodmanExecutor struct {
-	logger    *zap.Logger
-	config    *Config
-	langEnvs  *LanguageEnvironments
-	cmdRunner CommandRunner
-	fs        FileSystem
+	logger      *zap.Logger
+	config      *Config
+	langEnvs    *LanguageEnvironments
+	langConfigs *LanguageConfigs
+	cmdRunner   CommandRunner
+	fs          FileSystem
 }
 
 // PodmanExecutorOption defines a functional option for PodmanExecutor
@@ -43,14 +44,22 @@ func WithPodmanFileSystem(fs FileSystem) PodmanExecutorOption {
 	}
 }
 
+// WithPodmanLanguageConfigs sets the LanguageConfigs for PodmanExecutor
+func WithPodmanLanguageConfigs(langConfigs *LanguageConfigs) PodmanExecutorOption {
+	return func(p *PodmanExecutor) {
+		p.langConfigs = langConfigs
+	}
+}
+
 // NewPodmanExecutor creates a new PodmanExecutor with default implementations and optional interfaces
 func NewPodmanExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments, opts ...PodmanExecutorOption) *PodmanExecutor {
 	executor := &PodmanExecutor{
-		logger:    logger,
-		config:    config,
-		langEnvs:  langEnvs,
-		cmdRunner: &RealCommandRunner{}, // Default implementation
-		fs:        &RealFileSystem{},    // Default implementation
+		logger:      logger,
+		config:      config,
+		langEnvs:    langEnvs,
+		langConfigs: &LanguageConfigs{},   // Default empty, can be set via options
+		cmdRunner:   &RealCommandRunner{}, // Default implementation
+		fs:          &RealFileSystem{},    // Default implementation
 	}
 
 	// Apply options
@@ -180,8 +189,29 @@ func (p *PodmanExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 		}
 	}
 
-	// Create artifacts tar from the workdir
-	artifactsTar, err := p.createTarFromDir(workdirPath)
+	// Determine exclude patterns based on language
+	var excludePatterns []string
+	switch req.Language {
+	case LanguagePython:
+		if p.langConfigs != nil {
+			excludePatterns = p.langConfigs.Python.ExcludePatterns
+		}
+	case LanguageNodeJS:
+		if p.langConfigs != nil {
+			excludePatterns = p.langConfigs.NodeJS.ExcludePatterns
+		}
+	case LanguageGo:
+		if p.langConfigs != nil {
+			excludePatterns = p.langConfigs.Go.ExcludePatterns
+		}
+	case LanguageCPP:
+		if p.langConfigs != nil {
+			excludePatterns = p.langConfigs.CPP.ExcludePatterns
+		}
+	}
+
+	// Create artifacts tar from the workdir with exclude patterns
+	artifactsTar, err := p.createTarFromDirWithExcludes(workdirPath, excludePatterns)
 	if err != nil {
 		return ExecuteResult{}, fmt.Errorf("failed to create artifacts tar: %w", err)
 	}
@@ -237,8 +267,8 @@ func (p *PodmanExecutor) extractTarToDir(tarData []byte, destDir string) error {
 	return ExtractTarToDir(p.fs, tarData, destDir)
 }
 
-func (*PodmanExecutor) createTarFromDir(srcDir string) ([]byte, error) {
-	return CreateTarFromDir(srcDir)
+func (*PodmanExecutor) createTarFromDirWithExcludes(srcDir string, excludePatterns []string) ([]byte, error) {
+	return CreateTarFromDirWithExcludes(srcDir, excludePatterns)
 }
 
 func (p *PodmanExecutor) getEnvironmentVariables(language string) (map[string]string, error) {
