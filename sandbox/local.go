@@ -20,18 +20,46 @@ import (
 
 // LocalExecutor implements SandboxExecutor using local execution (for development only)
 type LocalExecutor struct {
-	logger   *zap.Logger
-	config   *Config
-	langEnvs *LanguageEnvironments
+	logger    *zap.Logger
+	config    *Config
+	langEnvs  *LanguageEnvironments
+	cmdRunner CommandRunner
+	fs        FileSystem
 }
 
-// NewLocalExecutor creates a new LocalExecutor
-func NewLocalExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments) *LocalExecutor {
-	return &LocalExecutor{
-		logger:   logger,
-		config:   config,
-		langEnvs: langEnvs,
+// LocalExecutorOption defines a functional option for LocalExecutor
+type LocalExecutorOption func(*LocalExecutor)
+
+// WithLocalCommandRunner sets the CommandRunner for LocalExecutor
+func WithLocalCommandRunner(cmdRunner CommandRunner) LocalExecutorOption {
+	return func(l *LocalExecutor) {
+		l.cmdRunner = cmdRunner
 	}
+}
+
+// WithLocalFileSystem sets the FileSystem for LocalExecutor
+func WithLocalFileSystem(fs FileSystem) LocalExecutorOption {
+	return func(l *LocalExecutor) {
+		l.fs = fs
+	}
+}
+
+// NewLocalExecutor creates a new LocalExecutor with default implementations and optional interfaces
+func NewLocalExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments, opts ...LocalExecutorOption) *LocalExecutor {
+	executor := &LocalExecutor{
+		logger:    logger,
+		config:    config,
+		langEnvs:  langEnvs,
+		cmdRunner: &RealCommandRunner{}, // Default implementation
+		fs:        &RealFileSystem{},    // Default implementation
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(executor)
+	}
+
+	return executor
 }
 
 // Execute runs the code locally (WARNING: This is not secure and should only be used for development)
@@ -191,7 +219,7 @@ func (*LocalExecutor) writeUserCode(language, code, filePath string) error {
 }
 
 func (l *LocalExecutor) extractTarToDir(tarData []byte, destDir string) error {
-	return ExtractTarToDir(l.logger, tarData, destDir)
+	return ExtractTarToDir(l.fs, tarData, destDir)
 }
 
 func (*LocalExecutor) createTarFromDir(srcDir string) ([]byte, error) {

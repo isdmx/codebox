@@ -59,97 +59,55 @@ mcp-inspector --help
 
 Once the server is running, you can connect using the MCP inspector:
 
-### Using the CLI Mode (Opens Browser Interface)
+### Using the CLI Mode 
 The correct way to use the inspector with the Codebox server. Note that the `--cli` flag opens a browser-based interface:
 
 ```bash
-# List available tools (opens browser)
+# List available tools 
 mcp-inspector --cli --transport http --method tools/list --server-url --target http://localhost:8080/mcp
 
-# Execute Python code (opens browser)
-mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp --tool-name execute_sandboxed_code --tool-arg language=python --tool-arg code="print(2+2)"
+# Execute Python code 
+mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp --tool-name execute_sandboxed_code --tool-arg language=python --tool-arg code="
+import os
+import sys
 
-# Execute Node.js code (opens browser)
-mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp --tool-name execute_sandboxed_code --tool-arg language=nodejs --tool-arg code="console.log('Hello from Node.js');"
+print(sys.version)
+print(os.uname())
+print('\n'.join(f'{k}={v}' for k, v in os.environ.items()))
+"
 
-# Execute Go code (opens browser)
-mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp --tool-name execute_sandboxed_code --tool-arg language=go --tool-arg code="package main\n\nimport \"fmt\"\n\nfunc main() {\n    fmt.Println(\"Hello from Go!\")\n    return\n}"
+# Execute Node.js code 
+mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp --tool-name execute_sandboxed_code --tool-arg language=nodejs --tool-arg code="
+console.log(process.env);
+"
 
-# Execute C++ code (opens browser)
-mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp --tool-name execute_sandboxed_code --tool-arg language=cpp --tool-arg code="#include <iostream>\nint main() { std::cout << \"Hello from C++!\"; return 0; }"
+# Execute Go code 
+mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp --tool-name execute_sandboxed_code --tool-arg language=go --tool-arg code="
+package main
 
-# Execute with initial files (opens browser)
+import \"fmt\"
+
+func main() {
+fmt.Println(\"Hello from a single Go file!\")
+}
+"
+
+# Execute C++ code 
+mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp --tool-name execute_sandboxed_code --tool-arg language=cpp --tool-arg code="
+#include <iostream>
+
+int main() {
+std::cout << \"Hello, World!\" << std::endl;
+return 0;
+}
+"
+
+
+# Execute with initial files 
 mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp --tool-name execute_sandboxed_code --tool-arg language=python --tool-arg code="with open('input.txt', 'r') as f: print(f.read())" --tool-arg workdir_tar="base64-encoded-tar-content-here"
 ```
 
-Note: The MCP Inspector does not have a command-line interactive mode. The `--cli` flag opens a browser-based interface where you can interact with the tools.
-```
 
-## MCP Tool Usage
-
-The server exposes a single tool: `execute_sandboxed_code`
-
-### Parameters:
-- `code` (string, required): The source code to execute
-- `language` (string, required): One of `python`, `nodejs`, `go`, `cpp`
-- `workdir_tar` (string, optional): Base64-encoded tar.gz of initial working directory
-
-### Examples:
-
-#### Python Execution
-```json
-{
-  "method": "tools/execute_sandboxed_code",
-  "params": {
-    "arguments": {
-      "code": "print('Hello from sandboxed Python!')\nprint('2 + 2 =', 2 + 2)",
-      "language": "python"
-    }
-  },
-  "id": "req-1"
-}
-```
-
-#### Node.js Execution
-```json
-{
-  "method": "tools/execute_sandboxed_code",
-  "params": {
-    "arguments": {
-      "code": "console.log('Hello from sandboxed Node.js!');\nconsole.log('Current time:', new Date().toISOString());",
-      "language": "nodejs"
-    }
-  },
-  "id": "req-2"
-}
-```
-
-#### Python with Initial Files
-```json
-{
-  "method": "tools/execute_sandboxed_code",
-  "params": {
-    "arguments": {
-      "code": "import json\nwith open('data.json', 'r') as f:\n    data = json.load(f)\nprint('Loaded data:', data)",
-      "language": "python",
-      "workdir_tar": "base64-encoded-tar-content-here"
-    }
-  },
-  "id": "req-3"
-}
-```
-
-## Expected Response Format
-
-The server returns responses in MCP format containing a JSON string with:
-```json
-{
-  "stdout": "captured standard output",
-  "stderr": "captured standard error", 
-  "exit_code": 0,
-  "artifacts_tar": "base64-encoded-final-workdir-content"
-}
-```
 
 ## Configuration
 

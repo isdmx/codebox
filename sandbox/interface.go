@@ -13,10 +13,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"go.uber.org/zap"
 )
 
 // ExecuteRequest represents the parameters for code execution
@@ -40,6 +39,81 @@ type ExecuteResult struct {
 // SandboxExecutor defines the interface for sandbox execution
 type SandboxExecutor interface {
 	Execute(ctx context.Context, req ExecuteRequest) (ExecuteResult, error)
+}
+
+// CommandRunner defines an interface for executing system commands
+type CommandRunner interface {
+	RunCommand(ctx context.Context, args []string) (stdout, stderr string, exitCode int, err error)
+}
+
+// RealCommandRunner implements CommandRunner using actual exec commands
+type RealCommandRunner struct{}
+
+// RunCommand executes the given command with arguments
+func (RealCommandRunner) RunCommand(ctx context.Context, args []string) (stdout, stderr string, exitCode int, err error) {
+	if len(args) < 1 {
+		return "", "", 0, fmt.Errorf("no command provided")
+	}
+
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...) //nolint:gosec // Safe as this is controlled input
+
+	var stdoutBuf, stderrBuf bytes.Buffer
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+
+	err = cmd.Run()
+
+	exitCode = 0
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			exitCode = exitError.ExitCode()
+		} else {
+			return "", "", 0, err
+		}
+	}
+
+	return stdoutBuf.String(), stderrBuf.String(), exitCode, nil
+}
+
+// FileSystem defines an interface for file system operations
+type FileSystem interface {
+	MkdirTemp(dir, pattern string) (string, error)
+	MkdirAll(path string, perm os.FileMode) error
+	WriteFile(filename string, data []byte, perm os.FileMode) error
+	ReadFile(filename string) ([]byte, error)
+	RemoveAll(path string) error
+	FileExists(path string) (bool, error)
+}
+
+// RealFileSystem implements FileSystem using actual file system operations
+type RealFileSystem struct{}
+
+func (RealFileSystem) MkdirTemp(dir, pattern string) (string, error) {
+	return os.MkdirTemp(dir, pattern)
+}
+
+func (RealFileSystem) MkdirAll(path string, perm os.FileMode) error {
+	return os.MkdirAll(path, perm)
+}
+
+func (RealFileSystem) WriteFile(filename string, data []byte, perm os.FileMode) error {
+	return os.WriteFile(filename, data, perm)
+}
+
+func (RealFileSystem) ReadFile(filename string) ([]byte, error) {
+	return os.ReadFile(filename)
+}
+
+func (RealFileSystem) RemoveAll(path string) error {
+	return os.RemoveAll(path)
+}
+
+func (RealFileSystem) FileExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // LanguageEnvironments holds environment variables for different languages
@@ -180,19 +254,13 @@ func GetEnvironmentVariables(langEnvs *LanguageEnvironments, language string) (m
 }
 
 // ExtractTarToDir extracts tar.gz data to the destination directory safely
-//
-//nolint:gocyclo // Function needs to handle different file types and validation in tar extraction
-func ExtractTarToDir(logger *zap.Logger, tarData []byte, destDir string) error {
+func ExtractTarToDir(fs FileSystem, tarData []byte, destDir string) error {
 	// Decompress the tar.gz data
 	gzipReader, err := gzip.NewReader(bytes.NewReader(tarData))
 	if err != nil {
 		return fmt.Errorf("failed to create gzip reader: %w", err)
 	}
-	defer func() {
-		if closeErr := gzipReader.Close(); closeErr != nil && logger != nil {
-			logger.Error("Failed to close gzip reader", zap.Error(closeErr))
-		}
-	}()
+	defer gzipReader.Close()
 
 	tarReader := tar.NewReader(gzipReader)
 
@@ -224,28 +292,25 @@ func ExtractTarToDir(logger *zap.Logger, tarData []byte, destDir string) error {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(filePath, DirPermission); err != nil {
+			if err := fs.MkdirAll(filePath, DirPermission); err != nil {
 				return fmt.Errorf("failed to create directory: %w", err)
 			}
 		case tar.TypeReg:
 			// Create parent directories if they don't exist
-			if err := os.MkdirAll(filepath.Dir(filePath), DirPermission); err != nil {
+			if err := fs.MkdirAll(filepath.Dir(filePath), DirPermission); err != nil {
 				return fmt.Errorf("failed to create parent directories: %w", err)
 			}
 
-			// Write the file
-			outFile, err := os.Create(filePath)
+			// Read file content
+			fileContent := make([]byte, header.Size)
+			_, err := io.ReadFull(tarReader, fileContent)
 			if err != nil {
-				return fmt.Errorf("failed to create file: %w", err)
+				return fmt.Errorf("failed to read file content: %w", err)
 			}
 
-			if _, err := io.CopyN(outFile, tarReader, header.Size); err != nil {
-				outFile.Close()
-				return fmt.Errorf("failed to copy file content: %w", err)
-			}
-
-			if err := outFile.Close(); err != nil {
-				return fmt.Errorf("failed to close file: %w", err)
+			// Write the file content using the file system interface
+			if err := fs.WriteFile(filePath, fileContent, FilePermission); err != nil {
+				return fmt.Errorf("failed to write file: %w", err)
 			}
 		default:
 			return fmt.Errorf("unsupported file type in tar: %c", header.Typeflag)

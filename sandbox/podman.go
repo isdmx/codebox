@@ -19,18 +19,46 @@ import (
 
 // PodmanExecutor implements SandboxExecutor using Podman
 type PodmanExecutor struct {
-	logger   *zap.Logger
-	config   *Config
-	langEnvs *LanguageEnvironments
+	logger    *zap.Logger
+	config    *Config
+	langEnvs  *LanguageEnvironments
+	cmdRunner CommandRunner
+	fs        FileSystem
 }
 
-// NewPodmanExecutor creates a new PodmanExecutor
-func NewPodmanExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments) *PodmanExecutor {
-	return &PodmanExecutor{
-		logger:   logger,
-		config:   config,
-		langEnvs: langEnvs,
+// PodmanExecutorOption defines a functional option for PodmanExecutor
+type PodmanExecutorOption func(*PodmanExecutor)
+
+// WithPodmanCommandRunner sets the CommandRunner for PodmanExecutor
+func WithPodmanCommandRunner(cmdRunner CommandRunner) PodmanExecutorOption {
+	return func(p *PodmanExecutor) {
+		p.cmdRunner = cmdRunner
 	}
+}
+
+// WithPodmanFileSystem sets the FileSystem for PodmanExecutor
+func WithPodmanFileSystem(fs FileSystem) PodmanExecutorOption {
+	return func(p *PodmanExecutor) {
+		p.fs = fs
+	}
+}
+
+// NewPodmanExecutor creates a new PodmanExecutor with default implementations and optional interfaces
+func NewPodmanExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments, opts ...PodmanExecutorOption) *PodmanExecutor {
+	executor := &PodmanExecutor{
+		logger:    logger,
+		config:    config,
+		langEnvs:  langEnvs,
+		cmdRunner: &RealCommandRunner{}, // Default implementation
+		fs:        &RealFileSystem{},    // Default implementation
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(executor)
+	}
+
+	return executor
 }
 
 // Execute runs the code in a Podman container
@@ -206,7 +234,7 @@ func (*PodmanExecutor) getRunCommand(language string) (string, error) {
 }
 
 func (p *PodmanExecutor) extractTarToDir(tarData []byte, destDir string) error {
-	return ExtractTarToDir(p.logger, tarData, destDir)
+	return ExtractTarToDir(p.fs, tarData, destDir)
 }
 
 func (*PodmanExecutor) createTarFromDir(srcDir string) ([]byte, error) {

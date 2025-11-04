@@ -7,10 +7,8 @@
 package sandbox
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
@@ -20,9 +18,11 @@ import (
 
 // DockerExecutor implements SandboxExecutor using Docker
 type DockerExecutor struct {
-	logger   *zap.Logger
-	config   *Config
-	langEnvs *LanguageEnvironments
+	logger    *zap.Logger
+	config    *Config
+	langEnvs  *LanguageEnvironments
+	cmdRunner CommandRunner
+	fs        FileSystem
 }
 
 // Config holds configuration for the Docker executor
@@ -33,13 +33,39 @@ type Config struct {
 	MaxArtifactSizeMB int
 }
 
-// NewDockerExecutor creates a new DockerExecutor
-func NewDockerExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments) *DockerExecutor {
-	return &DockerExecutor{
-		logger:   logger,
-		config:   config,
-		langEnvs: langEnvs,
+// DockerExecutorOption defines a functional option for DockerExecutor
+type DockerExecutorOption func(*DockerExecutor)
+
+// WithDockerCommandRunner sets the CommandRunner for DockerExecutor
+func WithDockerCommandRunner(cmdRunner CommandRunner) DockerExecutorOption {
+	return func(d *DockerExecutor) {
+		d.cmdRunner = cmdRunner
 	}
+}
+
+// WithDockerFileSystem sets the FileSystem for DockerExecutor
+func WithDockerFileSystem(fs FileSystem) DockerExecutorOption {
+	return func(d *DockerExecutor) {
+		d.fs = fs
+	}
+}
+
+// NewDockerExecutor creates a new DockerExecutor with default implementations and optional interfaces
+func NewDockerExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments, opts ...DockerExecutorOption) *DockerExecutor {
+	executor := &DockerExecutor{
+		logger:    logger,
+		config:    config,
+		langEnvs:  langEnvs,
+		cmdRunner: &RealCommandRunner{}, // Default implementation
+		fs:        &RealFileSystem{},    // Default implementation
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(executor)
+	}
+
+	return executor
 }
 
 // Execute runs the code in a Docker container
@@ -47,15 +73,19 @@ func NewDockerExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnv
 //nolint:gocyclo,funlen,gocritic // Complex function intentionally handles multiple languages with large request struct
 func (d *DockerExecutor) Execute(ctx context.Context, req ExecuteRequest) (ExecuteResult, error) {
 	// Create a temporary directory for this execution
-	tempDir, err := os.MkdirTemp("", "codebox-exec-*")
+	tempDir, err := d.fs.MkdirTemp("", "codebox-exec-*")
 	if err != nil {
 		return ExecuteResult{}, fmt.Errorf("failed to create temp dir: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if rmErr := d.fs.RemoveAll(tempDir); rmErr != nil {
+			d.logger.Error("failed to remove temp directory", zap.String("path", tempDir), zap.Error(rmErr))
+		}
+	}()
 
 	// Prepare the working directory
 	workdirPath := filepath.Join(tempDir, "workdir")
-	if mkdirErr := os.MkdirAll(workdirPath, DirPermission); mkdirErr != nil {
+	if mkdirErr := d.fs.MkdirAll(workdirPath, DirPermission); mkdirErr != nil {
 		return ExecuteResult{}, fmt.Errorf("failed to create workdir: %w", mkdirErr)
 	}
 
@@ -72,8 +102,11 @@ func (d *DockerExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 		return ExecuteResult{}, fmt.Errorf("invalid language: %w", getErr)
 	}
 
+	// Apply hooks for interpreted languages
+	finalCode := ApplyHooks(req.Language, req.Code)
+
 	codeFilePath := filepath.Join(workdirPath, codeFileName)
-	if writeErr := d.writeUserCode(req.Language, req.Code, codeFilePath); writeErr != nil {
+	if writeErr := d.fs.WriteFile(codeFilePath, []byte(finalCode), FilePermission); writeErr != nil {
 		return ExecuteResult{}, fmt.Errorf("failed to write user code: %w", writeErr)
 	}
 
@@ -137,41 +170,28 @@ func (d *DockerExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Duration(d.config.TimeoutSec)*time.Second)
 	defer cancel()
 
-	// Create command
-	cmd := exec.CommandContext(ctxWithTimeout, cmdArgs[0], cmdArgs[1:]...) //nolint:gosec // Command is constructed from validated inputs
-
-	// Log the full command for debugging
-	d.logger.Info("executing docker command", zap.Strings("command", cmdArgs))
-
-	// Capture stdout and stderr
-	var stdoutBuf, stderrBuf bytes.Buffer
-	cmd.Stdout = &stdoutBuf
-	cmd.Stderr = &stderrBuf
-
-	// Start the command
-	err = cmd.Run()
+	// Execute command using the command runner
+	stdout, stderr, exitCode, err := d.cmdRunner.RunCommand(ctxWithTimeout, cmdArgs)
 
 	// If the context timed out, handle it explicitly
 	if ctxWithTimeout.Err() == context.DeadlineExceeded {
-		// Try to stop the container if it's still running
-		_ = exec.CommandContext(ctx, "docker", "stop", containerName).Run()
+		// Try to stop the container if it's still running - this still needs direct exec call for now
+		stopCmd := exec.CommandContext(ctx, "docker", "stop", containerName)
+		if stopErr := stopCmd.Run(); stopErr != nil {
+			d.logger.Warn("failed to stop container after timeout", zap.String("container", containerName), zap.Error(stopErr))
+		}
 
 		return ExecuteResult{
-			Stdout:       stdoutBuf.String(),
-			Stderr:       stderrBuf.String() + "\nExecution timed out",
+			Stdout:       stdout,
+			Stderr:       stderr + "\nExecution timed out",
 			ExitCode:     1,
 			ArtifactsTar: []byte{}, // Empty artifacts on timeout
 		}, nil
 	}
 
-	// Get the exit code
-	exitCode := 0
+	// Check for execution error
 	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			exitCode = exitError.ExitCode()
-		} else {
-			return ExecuteResult{}, fmt.Errorf("failed to execute container: %w", err)
-		}
+		return ExecuteResult{}, fmt.Errorf("failed to execute container: %w", err)
 	}
 
 	// Create artifacts tar from the workdir
@@ -187,8 +207,8 @@ func (d *DockerExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 	}
 
 	return ExecuteResult{
-		Stdout:       stdoutBuf.String(),
-		Stderr:       stderrBuf.String(),
+		Stdout:       stdout,
+		Stderr:       stderr,
 		ExitCode:     exitCode,
 		ArtifactsTar: artifactsTar,
 	}, nil
@@ -198,13 +218,6 @@ func (d *DockerExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 
 func (*DockerExecutor) getCodeFileName(language string) (string, error) {
 	return GetCodeFileName(language)
-}
-
-func (*DockerExecutor) writeUserCode(language, code, filePath string) error {
-	// Apply hooks for interpreted languages
-	finalCode := ApplyHooks(language, code)
-
-	return os.WriteFile(filePath, []byte(finalCode), FilePermission)
 }
 
 func getLanguageImage(language string) string {
@@ -233,7 +246,7 @@ func (d *DockerExecutor) getEnvironmentVariables(language string) (map[string]st
 }
 
 func (d *DockerExecutor) extractTarToDir(tarData []byte, destDir string) error {
-	return ExtractTarToDir(d.logger, tarData, destDir)
+	return ExtractTarToDir(d.fs, tarData, destDir)
 }
 
 func (*DockerExecutor) createTarFromDir(srcDir string) ([]byte, error) {
