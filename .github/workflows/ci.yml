@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [ '1.25', '1.26' ]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go ${{ matrix.go-version }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+        cache: true
+
+    - name: Install dependencies
+      run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Install golangci-lint
+      run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+    - name: Check formatting
+      run: |
+        # Check if code is properly formatted
+        UNFORMATTED=$(gofmt -l .)
+        if [ -n "$UNFORMATTED" ]; then
+          echo "The following files are not properly formatted:"
+          echo "$UNFORMATTED"
+          gofmt -d .
+          exit 1
+        fi
+        
+        # Check if imports are properly organized
+        UNFORMATTED_IMPORTS=$(goimports -l .)
+        if [ -n "$UNFORMATTED_IMPORTS" ]; then
+          echo "The following files have improperly organized imports:"
+          echo "$UNFORMATTED_IMPORTS"
+          goimports -d -local github.com/isdmx/codebox .
+          exit 1
+        fi
+
+    - name: Run linter
+      run: golangci-lint run
+
+    - name: Run tests with coverage (excluding integration tests)
+      run: |
+        mkdir -p coverage
+        # Run all package tests with coverage, excluding the root integration test file
+        go test -race -v -coverprofile=coverage/coverage.txt -covermode=atomic $(go list ./... | grep -v integration_test)
+        
+    - name: Run integration tests separately
+      run: |
+        # Run integration tests separately without coverage to avoid package conflicts
+        go test -race -v -run ".*Integration.*" ./
+
+    - name: Generate coverage report
+      run: go tool cover -func=coverage/coverage.txt
+
+    - name: Build project
+      run: go build ./cmd/server
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        file: ./coverage/coverage.txt
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
