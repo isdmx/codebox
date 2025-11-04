@@ -69,6 +69,8 @@ type GoConfig struct {
 	Image           string            `mapstructure:"image"`
 	BuildCmd        string            `mapstructure:"build_cmd"`
 	RunCmd          string            `mapstructure:"run_cmd"`
+	PrefixCode      string            `mapstructure:"prefix_code"`
+	PostfixCode     string            `mapstructure:"postfix_code"`
 	Environment     map[string]string `mapstructure:"environment"`
 	ExcludePatterns []string          `mapstructure:"exclude_patterns"`
 }
@@ -78,6 +80,8 @@ type CPPConfig struct {
 	Image           string            `mapstructure:"image"`
 	BuildCmd        string            `mapstructure:"build_cmd"`
 	RunCmd          string            `mapstructure:"run_cmd"`
+	PrefixCode      string            `mapstructure:"prefix_code"`
+	PostfixCode     string            `mapstructure:"postfix_code"`
 	Environment     map[string]string `mapstructure:"environment"`
 	ExcludePatterns []string          `mapstructure:"exclude_patterns"`
 }
@@ -169,6 +173,8 @@ signal.alarm(10)
 	viper.SetDefault("languages.go.image", "golang:1.23-alpine")
 	viper.SetDefault("languages.go.run_cmd", "/workdir/app")
 	viper.SetDefault("languages.go.build_cmd", "go build -o /workdir/app /workdir/main.go")
+	viper.SetDefault("languages.go.prefix_code", "")
+	viper.SetDefault("languages.go.postfix_code", "")
 	viper.SetDefault("languages.go.exclude_patterns", []string{
 		"*.o",
 		"*.a",
@@ -191,6 +197,8 @@ signal.alarm(10)
 	viper.SetDefault("languages.cpp.image", "gcc:13")
 	viper.SetDefault("languages.cpp.build_cmd", "g++ -std=c++17 -O2 -o /workdir/app /workdir/main.cpp")
 	viper.SetDefault("languages.cpp.run_cmd", "/workdir/app")
+	viper.SetDefault("languages.cpp.prefix_code", "")
+	viper.SetDefault("languages.cpp.postfix_code", "")
 	viper.SetDefault("languages.cpp.exclude_patterns", []string{
 		"*.o",
 		"*.a",

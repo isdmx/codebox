@@ -46,6 +46,26 @@ func NewExecutor(logger *zap.Logger, cfg *config.Config) (SandboxExecutor, error
 		},
 	}
 
+	// Create language code configs with prefix and postfix code
+	langCodeConfigs := &LanguageCodeConfigs{
+		Python: LanguageCodeConfig{
+			PrefixCode:  cfg.Languages.Python.PrefixCode,
+			PostfixCode: cfg.Languages.Python.PostfixCode,
+		},
+		NodeJS: LanguageCodeConfig{
+			PrefixCode:  cfg.Languages.NodeJS.PrefixCode,
+			PostfixCode: cfg.Languages.NodeJS.PostfixCode,
+		},
+		Go: LanguageCodeConfig{
+			PrefixCode:  cfg.Languages.Go.PrefixCode,
+			PostfixCode: cfg.Languages.Go.PostfixCode,
+		},
+		CPP: LanguageCodeConfig{
+			PrefixCode:  cfg.Languages.CPP.PrefixCode,
+			PostfixCode: cfg.Languages.CPP.PostfixCode,
+		},
+	}
+
 	switch backend := cfg.Sandbox.Backend; backend {
 	case "docker":
 		return NewDockerExecutor(
@@ -53,6 +73,7 @@ func NewExecutor(logger *zap.Logger, cfg *config.Config) (SandboxExecutor, error
 			&executorConfig,
 			langEnvs,
 			WithDockerLanguageConfigs(langConfigs),
+			WithDockerLanguageCodeConfigs(langCodeConfigs),
 		), nil
 	case "podman":
 		return NewPodmanExecutor(
@@ -60,6 +81,7 @@ func NewExecutor(logger *zap.Logger, cfg *config.Config) (SandboxExecutor, error
 			&executorConfig,
 			langEnvs,
 			WithPodmanLanguageConfigs(langConfigs),
+			WithPodmanLanguageCodeConfigs(langCodeConfigs),
 		), nil
 	case "local":
 		return NewLocalExecutor(
@@ -67,6 +89,7 @@ func NewExecutor(logger *zap.Logger, cfg *config.Config) (SandboxExecutor, error
 			&executorConfig,
 			langEnvs,
 			WithLocalLanguageConfigs(langConfigs),
+			WithLocalLanguageCodeConfigs(langCodeConfigs),
 		), nil
 	default:
 		return nil, fmt.Errorf("unsupported backend: %s", backend)

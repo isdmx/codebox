@@ -19,12 +19,13 @@ import (
 
 // PodmanExecutor implements SandboxExecutor using Podman
 type PodmanExecutor struct {
-	logger      *zap.Logger
-	config      *Config
-	langEnvs    *LanguageEnvironments
-	langConfigs *LanguageConfigs
-	cmdRunner   CommandRunner
-	fs          FileSystem
+	logger          *zap.Logger
+	config          *Config
+	langEnvs        *LanguageEnvironments
+	langConfigs     *LanguageConfigs
+	langCodeConfigs *LanguageCodeConfigs
+	cmdRunner       CommandRunner
+	fs              FileSystem
 }
 
 // PodmanExecutorOption defines a functional option for PodmanExecutor
@@ -51,15 +52,23 @@ func WithPodmanLanguageConfigs(langConfigs *LanguageConfigs) PodmanExecutorOptio
 	}
 }
 
+// WithPodmanLanguageCodeConfigs sets the LanguageCodeConfigs for PodmanExecutor
+func WithPodmanLanguageCodeConfigs(langCodeConfigs *LanguageCodeConfigs) PodmanExecutorOption {
+	return func(p *PodmanExecutor) {
+		p.langCodeConfigs = langCodeConfigs
+	}
+}
+
 // NewPodmanExecutor creates a new PodmanExecutor with default implementations and optional interfaces
 func NewPodmanExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments, opts ...PodmanExecutorOption) *PodmanExecutor {
 	executor := &PodmanExecutor{
-		logger:      logger,
-		config:      config,
-		langEnvs:    langEnvs,
-		langConfigs: &LanguageConfigs{},   // Default empty, can be set via options
-		cmdRunner:   &RealCommandRunner{}, // Default implementation
-		fs:          &RealFileSystem{},    // Default implementation
+		logger:          logger,
+		config:          config,
+		langEnvs:        langEnvs,
+		langConfigs:     &LanguageConfigs{},     // Default empty, can be set via options
+		langCodeConfigs: &LanguageCodeConfigs{}, // Default empty, can be set via options
+		cmdRunner:       &RealCommandRunner{},   // Default implementation
+		fs:              &RealFileSystem{},      // Default implementation
 	}
 
 	// Apply options
@@ -235,9 +244,9 @@ func (*PodmanExecutor) getCodeFileName(language string) (string, error) {
 	return GetCodeFileName(language)
 }
 
-func (*PodmanExecutor) writeUserCode(language, code, filePath string) error {
+func (p *PodmanExecutor) writeUserCode(language, code, filePath string) error {
 	// Apply hooks for interpreted languages
-	finalCode := ApplyHooks(language, code)
+	finalCode := ApplyHooks(language, code, p.langCodeConfigs)
 
 	return os.WriteFile(filePath, []byte(finalCode), FilePermission)
 }

@@ -18,12 +18,13 @@ import (
 
 // DockerExecutor implements SandboxExecutor using Docker
 type DockerExecutor struct {
-	logger      *zap.Logger
-	config      *Config
-	langEnvs    *LanguageEnvironments
-	langConfigs *LanguageConfigs
-	cmdRunner   CommandRunner
-	fs          FileSystem
+	logger          *zap.Logger
+	config          *Config
+	langEnvs        *LanguageEnvironments
+	langConfigs     *LanguageConfigs
+	langCodeConfigs *LanguageCodeConfigs
+	cmdRunner       CommandRunner
+	fs              FileSystem
 }
 
 // Config holds configuration for the Docker executor
@@ -58,15 +59,23 @@ func WithDockerLanguageConfigs(langConfigs *LanguageConfigs) DockerExecutorOptio
 	}
 }
 
+// WithDockerLanguageCodeConfigs sets the LanguageCodeConfigs for DockerExecutor
+func WithDockerLanguageCodeConfigs(langCodeConfigs *LanguageCodeConfigs) DockerExecutorOption {
+	return func(d *DockerExecutor) {
+		d.langCodeConfigs = langCodeConfigs
+	}
+}
+
 // NewDockerExecutor creates a new DockerExecutor with default implementations and optional interfaces
 func NewDockerExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments, opts ...DockerExecutorOption) *DockerExecutor {
 	executor := &DockerExecutor{
-		logger:      logger,
-		config:      config,
-		langEnvs:    langEnvs,
-		langConfigs: &LanguageConfigs{},   // Default empty, can be set via options
-		cmdRunner:   &RealCommandRunner{}, // Default implementation
-		fs:          &RealFileSystem{},    // Default implementation
+		logger:          logger,
+		config:          config,
+		langEnvs:        langEnvs,
+		langConfigs:     &LanguageConfigs{},     // Default empty, can be set via options
+		langCodeConfigs: &LanguageCodeConfigs{}, // Default empty, can be set via options
+		cmdRunner:       &RealCommandRunner{},   // Default implementation
+		fs:              &RealFileSystem{},      // Default implementation
 	}
 
 	// Apply options
@@ -112,7 +121,7 @@ func (d *DockerExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 	}
 
 	// Apply hooks for interpreted languages
-	finalCode := ApplyHooks(req.Language, req.Code)
+	finalCode := ApplyHooks(req.Language, req.Code, d.langCodeConfigs)
 
 	codeFilePath := filepath.Join(workdirPath, codeFileName)
 	if writeErr := d.fs.WriteFile(codeFilePath, []byte(finalCode), FilePermission); writeErr != nil {

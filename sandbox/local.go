@@ -20,12 +20,13 @@ import (
 
 // LocalExecutor implements SandboxExecutor using local execution (for development only)
 type LocalExecutor struct {
-	logger      *zap.Logger
-	config      *Config
-	langEnvs    *LanguageEnvironments
-	langConfigs *LanguageConfigs
-	cmdRunner   CommandRunner
-	fs          FileSystem
+	logger          *zap.Logger
+	config          *Config
+	langEnvs        *LanguageEnvironments
+	langConfigs     *LanguageConfigs
+	langCodeConfigs *LanguageCodeConfigs
+	cmdRunner       CommandRunner
+	fs              FileSystem
 }
 
 // LocalExecutorOption defines a functional option for LocalExecutor
@@ -52,15 +53,23 @@ func WithLocalLanguageConfigs(langConfigs *LanguageConfigs) LocalExecutorOption 
 	}
 }
 
+// WithLocalLanguageCodeConfigs sets the LanguageCodeConfigs for LocalExecutor
+func WithLocalLanguageCodeConfigs(langCodeConfigs *LanguageCodeConfigs) LocalExecutorOption {
+	return func(l *LocalExecutor) {
+		l.langCodeConfigs = langCodeConfigs
+	}
+}
+
 // NewLocalExecutor creates a new LocalExecutor with default implementations and optional interfaces
 func NewLocalExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments, opts ...LocalExecutorOption) *LocalExecutor {
 	executor := &LocalExecutor{
-		logger:      logger,
-		config:      config,
-		langEnvs:    langEnvs,
-		langConfigs: &LanguageConfigs{},   // Default empty, can be set via options
-		cmdRunner:   &RealCommandRunner{}, // Default implementation
-		fs:          &RealFileSystem{},    // Default implementation
+		logger:          logger,
+		config:          config,
+		langEnvs:        langEnvs,
+		langConfigs:     &LanguageConfigs{},     // Default empty, can be set via options
+		langCodeConfigs: &LanguageCodeConfigs{}, // Default empty, can be set via options
+		cmdRunner:       &RealCommandRunner{},   // Default implementation
+		fs:              &RealFileSystem{},      // Default implementation
 	}
 
 	// Apply options
@@ -241,9 +250,9 @@ func (*LocalExecutor) getCodeFileName(language string) (string, error) {
 	return GetCodeFileName(language)
 }
 
-func (*LocalExecutor) writeUserCode(language, code, filePath string) error {
+func (l *LocalExecutor) writeUserCode(language, code, filePath string) error {
 	// Apply hooks for interpreted languages
-	finalCode := ApplyHooks(language, code)
+	finalCode := ApplyHooks(language, code, l.langCodeConfigs)
 
 	return os.WriteFile(filePath, []byte(finalCode), FilePermission)
 }

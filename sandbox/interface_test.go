@@ -60,35 +60,78 @@ func TestGetRunCommand(t *testing.T) {
 }
 
 func TestApplyHooks(t *testing.T) {
+	// Create test language code configs with default hardcoded values for testing
+	testLangCodeConfigs := &LanguageCodeConfigs{
+		Python: LanguageCodeConfig{
+			PrefixCode: `import signal, sys, resource
+
+def timeout_handler(signum, frame):
+    print('Execution timeout!')
+    sys.exit(1)
+
+signal.signal(signal.SIGALRM, timeout_handler)
+signal.alarm(10)  # Set timeout to 10 seconds
+
+# Limit memory usage
+resource.setrlimit(resource.RLIMIT_AS, (512*1024*1024, 512*1024*1024))  # 512MB limit
+
+`,
+			PostfixCode: `
+signal.alarm(0)  # Cancel the alarm
+sys.stdout.flush()
+sys.stderr.flush()
+`,
+		},
+		NodeJS: LanguageCodeConfig{
+			PrefixCode: `// Set timeout for Node.js execution
+setTimeout(() => {
+  console.log('Execution timeout!');
+  process.exit(1);
+}, 10000);  // 10 seconds
+
+// Additional security could be added here
+`,
+			PostfixCode: ``,
+		},
+		Go: LanguageCodeConfig{
+			PrefixCode:  "",
+			PostfixCode: "",
+		},
+		CPP: LanguageCodeConfig{
+			PrefixCode:  "",
+			PostfixCode: "",
+		},
+	}
+
 	t.Run("PythonHooks", func(t *testing.T) {
 		code := "print('hello')"
-		result := ApplyHooks("python", code)
+		result := ApplyHooks("python", code, testLangCodeConfigs)
 		assert.Contains(t, result, "timeout_handler")
 		assert.Contains(t, result, "print('hello')")
 	})
 
 	t.Run("NodeJSHooks", func(t *testing.T) {
 		code := "console.log('hello')"
-		result := ApplyHooks("nodejs", code)
+		result := ApplyHooks("nodejs", code, testLangCodeConfigs)
 		assert.Contains(t, result, "Set timeout for Node.js execution")
 		assert.Contains(t, result, "console.log('hello')")
 	})
 
 	t.Run("GoNoHooks", func(t *testing.T) {
 		code := "package main\nfunc main() { println(\"hello\") }"
-		result := ApplyHooks("go", code)
+		result := ApplyHooks("go", code, testLangCodeConfigs)
 		assert.Equal(t, code, result) // Go should have no hooks
 	})
 
 	t.Run("CppNoHooks", func(t *testing.T) {
 		code := "#include <iostream>\nint main() { std::cout << \"hello\"; }"
-		result := ApplyHooks("cpp", code)
+		result := ApplyHooks("cpp", code, testLangCodeConfigs)
 		assert.Equal(t, code, result) // C++ should have no hooks
 	})
 
 	t.Run("InvalidLanguage", func(t *testing.T) {
 		code := "some code"
-		result := ApplyHooks("invalid", code)
+		result := ApplyHooks("invalid", code, testLangCodeConfigs)
 		assert.Equal(t, code, result) // Invalid should return code unchanged
 	})
 }

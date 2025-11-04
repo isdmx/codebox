@@ -182,41 +182,24 @@ func GetRunCommand(language string) (string, error) {
 }
 
 // ApplyHooks applies hooks for code execution based on language
-func ApplyHooks(language, code string) string {
-	// In a real implementation, these would come from config
+func ApplyHooks(language, code string, codeConfigs *LanguageCodeConfigs) string {
 	var prefixCode, postfixCode string
 
-	switch language {
-	case LanguagePython:
-		// Add timeout and security hooks for Python
-		prefixCode = `import signal, sys, resource
-
-def timeout_handler(signum, frame):
-    print('Execution timeout!')
-    sys.exit(1)
-
-signal.signal(signal.SIGALRM, timeout_handler)
-signal.alarm(10)  # Set timeout to 10 seconds
-
-# Limit memory usage
-resource.setrlimit(resource.RLIMIT_AS, (512*1024*1024, 512*1024*1024))  # 512MB limit
-
-`
-		postfixCode = `
-signal.alarm(0)  # Cancel the alarm
-sys.stdout.flush()
-sys.stderr.flush()
-`
-	case LanguageNodeJS:
-		prefixCode = `// Set timeout for Node.js execution
-setTimeout(() => {
-  console.log('Execution timeout!');
-  process.exit(1);
-}, 10000);  // 10 seconds
-
-// Additional security could be added here
-`
-		postfixCode = ``
+	if codeConfigs != nil {
+		switch language {
+		case LanguagePython:
+			prefixCode = codeConfigs.Python.PrefixCode
+			postfixCode = codeConfigs.Python.PostfixCode
+		case LanguageNodeJS:
+			prefixCode = codeConfigs.NodeJS.PrefixCode
+			postfixCode = codeConfigs.NodeJS.PostfixCode
+		case LanguageGo:
+			prefixCode = codeConfigs.Go.PrefixCode
+			postfixCode = codeConfigs.Go.PostfixCode
+		case LanguageCPP:
+			prefixCode = codeConfigs.CPP.PrefixCode
+			postfixCode = codeConfigs.CPP.PostfixCode
+		}
 	}
 
 	return prefixCode + code + postfixCode
@@ -321,9 +304,23 @@ func ExtractTarToDir(fs FileSystem, tarData []byte, destDir string) error {
 	return nil
 }
 
+// LanguageCodeConfig holds the prefix and postfix code for a language
+type LanguageCodeConfig struct {
+	PrefixCode  string
+	PostfixCode string
+}
+
 // LanguageConfig holds configuration for a specific language including exclude patterns
 type LanguageConfig struct {
 	ExcludePatterns []string
+}
+
+// LanguageCodeConfigs holds code configurations for different languages
+type LanguageCodeConfigs struct {
+	Python LanguageCodeConfig
+	NodeJS LanguageCodeConfig
+	Go     LanguageCodeConfig
+	CPP    LanguageCodeConfig
 }
 
 // LanguageConfigs holds configurations for different languages
