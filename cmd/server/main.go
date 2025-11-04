@@ -29,14 +29,10 @@ func main() {
 			config.New,
 
 			// Logger with configuration
-			func(cfg *config.Config) (*zap.Logger, error) {
-				return logger.New(cfg.Logging.Mode, cfg.Logging.Level)
-			},
+			logger.NewFromConfig,
 
 			// Sandbox executor based on config
-			func(cfg *config.Config, logger *zap.Logger) (sandbox.SandboxExecutor, error) {
-				return sandbox.NewExecutor(logger, cfg, cfg.Sandbox.Backend)
-			},
+			sandbox.NewExecutor,
 
 			// MCP Server
 			mcpserver.New,

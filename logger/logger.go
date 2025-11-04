@@ -10,20 +10,26 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/isdmx/codebox/config"
 )
+
+func NewFromConfig(cfg *config.Config) (*zap.Logger, error) {
+	return New(cfg.Logging.Mode, cfg.Logging.Level)
+}
 
 // New creates a new logger instance based on configuration
 func New(mode, level string) (*zap.Logger, error) {
-	var config zap.Config
+	var cfg zap.Config
 
 	switch mode {
 	case "development":
-		config = zap.NewDevelopmentConfig()
-		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		cfg = zap.NewDevelopmentConfig()
+		cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	case "production":
-		config = zap.NewProductionConfig()
-		config.EncoderConfig.TimeKey = "timestamp"
-		config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		cfg = zap.NewProductionConfig()
+		cfg.EncoderConfig.TimeKey = "timestamp"
+		cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	default:
 		return nil, fmt.Errorf("invalid logging mode: %s, must be 'production' or 'development'", mode)
 	}
@@ -33,7 +39,7 @@ func New(mode, level string) (*zap.Logger, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid logging level: %s, must be one of 'debug', 'info', 'warn', 'error', 'dpanic', 'panic', 'fatal'", level)
 	}
-	config.Level = zap.NewAtomicLevelAt(logLevel)
+	cfg.Level = zap.NewAtomicLevelAt(logLevel)
 
-	return config.Build()
+	return cfg.Build()
 }

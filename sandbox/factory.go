@@ -14,7 +14,7 @@ import (
 )
 
 // NewExecutor creates an appropriate sandbox executor based on the configuration
-func NewExecutor(logger *zap.Logger, cfg *config.Config, backend string) (SandboxExecutor, error) {
+func NewExecutor(logger *zap.Logger, cfg *config.Config) (SandboxExecutor, error) {
 	executorConfig := Config{
 		TimeoutSec:        cfg.Sandbox.TimeoutSec,
 		MemoryMB:          cfg.Sandbox.MemoryMB,
@@ -30,7 +30,7 @@ func NewExecutor(logger *zap.Logger, cfg *config.Config, backend string) (Sandbo
 		CPP:    cfg.Languages.CPP.Environment,
 	}
 
-	switch backend {
+	switch backend := cfg.Sandbox.Backend; backend {
 	case "docker":
 		return NewDockerExecutor(logger, &executorConfig, langEnvs), nil
 	case "podman":
