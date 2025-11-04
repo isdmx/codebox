@@ -68,6 +68,23 @@ languages:
 
   go:
     image: "golang:1.23-alpine"
+    prefix_code: |
+      package main
+      import (
+         "fmt"
+         "log"
+         "os"
+      )
+
+      var (
+        _ = fmt.Println
+        _ = log.Println
+        _ = os.Exit
+      )
+
+      func main() {
+    postfix_code: |
+      }
     build_cmd: "go build -o /workdir/app /workdir/main.go"
     run_cmd: "/workdir/app"
     environment:

@@ -19,6 +19,23 @@ import (
 	"github.com/isdmx/codebox/sandbox"
 )
 
+// ExecuteRequest represents the input parameters for code execution
+type ExecuteRequest struct {
+	Code       string `json:"code" jsonschema_description:"User-provided source code" jsonschema:"required"`
+	Language   string `json:"language" jsonschema:"enum=python,enum=nodejs,enum=go,enum=cpp,required"`
+	WorkdirTar string `json:"workdir_tar,omitempty" jsonschema_description:"Base64-encoded tar.gz of initial working directory (optional)"`
+}
+
+// ExecuteResponse represents the structured response from code execution
+type ExecuteResponse struct {
+	Stdout       string `json:"stdout" jsonschema_description:"Standard output from execution"`
+	Stderr       string `json:"stderr" jsonschema_description:"Standard error from execution"`
+	ExitCode     int    `json:"exit_code" jsonschema_description:"Exit code of the process"`
+	ArtifactsTar string `json:"artifacts_tar,omitempty" jsonschema_description:"Base64-encoded tar.gz of working directory after execution"`
+	Error        string `json:"error,omitempty" jsonschema_description:"Error message if execution failed"`
+	Success      bool   `json:"success" jsonschema_description:"Indicates if execution was successful"`
+}
+
 // MCPServer represents the MCP server
 type MCPServer struct {
 	config      *config.Config
@@ -62,47 +79,22 @@ func New(cfg *config.Config, logger *zap.Logger, sandboxExec sandbox.SandboxExec
 
 // registerExecuteSandboxedCodeTool registers the execute_sandboxed_code tool
 func (s *MCPServer) registerExecuteSandboxedCodeTool() {
-	tool := mcp.Tool{
-		Name:        "execute_sandboxed_code",
-		Description: "Execute untrusted code in a sandboxed environment",
-		InputSchema: mcp.ToolInputSchema{
-			Type: "object",
-			Properties: map[string]any{
-				"code": map[string]any{
-					"type":        "string",
-					"description": "User-provided source code",
-				},
-				"language": map[string]any{
-					"type":        "string",
-					"description": "Runtime language",
-					"enum":        []string{"python", "nodejs", "go", "cpp"},
-				},
-				"workdir_tar": map[string]any{
-					"type":        "string",
-					"description": "Base64-encoded tar.gz of initial working directory (optional)",
-				},
-			},
-			Required: []string{"code", "language"},
-		},
-	}
+	tool := mcp.NewTool("execute_sandboxed_code",
+		mcp.WithDescription("Execute untrusted code in a sandboxed environment"),
+		mcp.WithInputSchema[ExecuteRequest](),
+		mcp.WithOutputSchema[ExecuteResponse](),
+	)
 
-	s.mcpServer.AddTool(tool, s.handleExecuteSandboxedCode)
+	s.mcpServer.AddTool(tool, mcp.NewStructuredToolHandler(s.handleExecuteSandboxedCodeStructured))
 }
 
-// handleExecuteSandboxedCode handles the execute_sandboxed_code tool
-func (s *MCPServer) handleExecuteSandboxedCode(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+// handleExecuteSandboxedCodeStructured handles the execute_sandboxed_code tool with structured input/output
+func (s *MCPServer) handleExecuteSandboxedCodeStructured(
+	ctx context.Context,
+	_ mcp.CallToolRequest,
+	args ExecuteRequest,
+) (ExecuteResponse, error) {
 	s.logger.Info("code execution requested")
-
-	// Extract parameters
-	code, err := request.RequireString("code")
-	if err != nil {
-		return nil, fmt.Errorf("code parameter is required: %w", err)
-	}
-
-	language, err := request.RequireString("language")
-	if err != nil {
-		return nil, fmt.Errorf("language parameter is required: %w", err)
-	}
 
 	// Validate language
 	validLanguages := map[string]bool{
@@ -111,30 +103,35 @@ func (s *MCPServer) handleExecuteSandboxedCode(ctx context.Context, request mcp.
 		"go":     true,
 		"cpp":    true,
 	}
-	if !validLanguages[language] {
-		return nil, fmt.Errorf("invalid language: %s, must be one of: python, nodejs, go, cpp", language)
+	if !validLanguages[args.Language] {
+		return ExecuteResponse{
+			Success: false,
+			Error:   fmt.Sprintf("invalid language: %s, must be one of: python, nodejs, go, cpp", args.Language),
+		}, nil
 	}
 
 	// Get optional workdir_tar
 	var workdirTar []byte
-	workdirTarStr := request.GetString("workdir_tar", "")
-	if workdirTarStr != "" {
-		decodedWorkdirTar, decodeErr := base64.StdEncoding.DecodeString(workdirTarStr)
+	if args.WorkdirTar != "" {
+		decodedWorkdirTar, decodeErr := base64.StdEncoding.DecodeString(args.WorkdirTar)
 		if decodeErr != nil {
-			return nil, fmt.Errorf("failed to decode workdir_tar: %w", decodeErr)
+			return ExecuteResponse{
+				Success: false,
+				Error:   fmt.Sprintf("failed to decode workdir_tar: %v", decodeErr),
+			}, nil
 		}
 		workdirTar = decodedWorkdirTar
 	}
 
 	// Log execution
 	s.logger.Info("executing code in sandbox",
-		zap.String("language", language),
+		zap.String("language", args.Language),
 		zap.Bool("has_workdir", len(workdirTar) > 0))
 
 	// Prepare the execution request
-	req := sandbox.ExecuteRequest{
-		Language:   language,
-		Code:       code,
+	execReq := sandbox.ExecuteRequest{
+		Language:   args.Language,
+		Code:       args.Code,
 		WorkdirTar: workdirTar,
 		TimeoutSec: s.config.Sandbox.TimeoutSec,
 		MemoryMB:   s.config.Sandbox.MemoryMB,
@@ -142,26 +139,24 @@ func (s *MCPServer) handleExecuteSandboxedCode(ctx context.Context, request mcp.
 	}
 
 	// Execute the code
-	result, err := s.sandboxExec.Execute(ctx, req)
+	result, err := s.sandboxExec.Execute(ctx, execReq)
 	if err != nil {
 		s.logger.Error("sandbox execution failed",
 			zap.Error(err),
-			zap.String("language", language),
-			zap.String("code", code))
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				mcp.TextContent{
-					Type: "text",
-					Text: fmt.Sprintf("Execution failed: %v", err),
-				},
-			},
-			IsError: true,
+			zap.String("language", args.Language),
+			zap.String("code", args.Code))
+		return ExecuteResponse{
+			Stdout:   "",
+			Stderr:   "",
+			ExitCode: 1,
+			Error:    fmt.Sprintf("execution failed: %v", err),
+			Success:  false,
 		}, nil
 	}
 
 	// Log execution result
 	s.logger.Info("code execution completed",
-		zap.String("language", language),
+		zap.String("language", args.Language),
 		zap.Int("exit_code", result.ExitCode),
 		zap.Int("stdout_len", len(result.Stdout)),
 		zap.Int("stderr_len", len(result.Stderr)))
@@ -169,17 +164,12 @@ func (s *MCPServer) handleExecuteSandboxedCode(ctx context.Context, request mcp.
 	// Encode artifacts as base64
 	artifactsB64 := base64.StdEncoding.EncodeToString(result.ArtifactsTar)
 
-	// Convert result to JSON string for content
-	resultJSON := fmt.Sprintf(`{"stdout":%q,"stderr":%q,"exit_code":%d,"artifacts_tar":%q}`,
-		result.Stdout, result.Stderr, result.ExitCode, artifactsB64)
-
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			mcp.TextContent{
-				Type: "text",
-				Text: resultJSON,
-			},
-		},
+	return ExecuteResponse{
+		Stdout:       result.Stdout,
+		Stderr:       result.Stderr,
+		ExitCode:     result.ExitCode,
+		ArtifactsTar: artifactsB64,
+		Success:      true,
 	}, nil
 }
 
