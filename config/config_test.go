@@ -16,11 +16,11 @@ func TestConfigValidation(t *testing.T) {
 				HTTPPort:  8080,
 			},
 			Sandbox: SandboxConfig{
-				Backend:           "docker",
-				TimeoutSec:        30,
-				MemoryMB:          512,
-				MaxArtifactSizeMB: 20,
-				NetworkEnabled:    false,
+				Backend:            "docker",
+				TimeoutSec:         30,
+				MemoryMB:           512,
+				MaxArtifactSizeMB:  20,
+				NetworkEnabled:     false,
 				EnableLocalBackend: false,
 			},
 			Logging: LoggingConfig{
@@ -28,7 +28,7 @@ func TestConfigValidation(t *testing.T) {
 				Level: "info",
 			},
 		}
-		
+
 		err := cfg.validate()
 		require.NoError(t, err)
 	})
@@ -40,11 +40,11 @@ func TestConfigValidation(t *testing.T) {
 				HTTPPort:  8080,
 			},
 			Sandbox: SandboxConfig{
-				Backend:           "docker",
-				TimeoutSec:        30,
-				MemoryMB:          512,
-				MaxArtifactSizeMB: 20,
-				NetworkEnabled:    false,
+				Backend:            "docker",
+				TimeoutSec:         30,
+				MemoryMB:           512,
+				MaxArtifactSizeMB:  20,
+				NetworkEnabled:     false,
 				EnableLocalBackend: false,
 			},
 			Logging: LoggingConfig{
@@ -52,9 +52,9 @@ func TestConfigValidation(t *testing.T) {
 				Level: "info",
 			},
 		}
-		
+
 		err := cfg.validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid server.transport")
 	})
 
@@ -65,11 +65,11 @@ func TestConfigValidation(t *testing.T) {
 				HTTPPort:  8080,
 			},
 			Sandbox: SandboxConfig{
-				Backend:           "docker",
-				TimeoutSec:        0, // Invalid: must be positive
-				MemoryMB:          512,
-				MaxArtifactSizeMB: 20,
-				NetworkEnabled:    false,
+				Backend:            "docker",
+				TimeoutSec:         0, // Invalid: must be positive
+				MemoryMB:           512,
+				MaxArtifactSizeMB:  20,
+				NetworkEnabled:     false,
 				EnableLocalBackend: false,
 			},
 			Logging: LoggingConfig{
@@ -77,9 +77,9 @@ func TestConfigValidation(t *testing.T) {
 				Level: "info",
 			},
 		}
-		
+
 		err := cfg.validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "sandbox.timeout_sec must be positive")
 	})
 
@@ -90,11 +90,11 @@ func TestConfigValidation(t *testing.T) {
 				HTTPPort:  8080,
 			},
 			Sandbox: SandboxConfig{
-				Backend:           "docker",
-				TimeoutSec:        30,
-				MemoryMB:          0, // Invalid: must be positive
-				MaxArtifactSizeMB: 20,
-				NetworkEnabled:    false,
+				Backend:            "docker",
+				TimeoutSec:         30,
+				MemoryMB:           0, // Invalid: must be positive
+				MaxArtifactSizeMB:  20,
+				NetworkEnabled:     false,
 				EnableLocalBackend: false,
 			},
 			Logging: LoggingConfig{
@@ -102,9 +102,9 @@ func TestConfigValidation(t *testing.T) {
 				Level: "info",
 			},
 		}
-		
+
 		err := cfg.validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "sandbox.memory_mb must be positive")
 	})
 
@@ -115,11 +115,11 @@ func TestConfigValidation(t *testing.T) {
 				HTTPPort:  8080,
 			},
 			Sandbox: SandboxConfig{
-				Backend:           "docker",
-				TimeoutSec:        30,
-				MemoryMB:          512,
-				MaxArtifactSizeMB: 20,
-				NetworkEnabled:    false,
+				Backend:            "docker",
+				TimeoutSec:         30,
+				MemoryMB:           512,
+				MaxArtifactSizeMB:  20,
+				NetworkEnabled:     false,
 				EnableLocalBackend: false,
 			},
 			Logging: LoggingConfig{
@@ -127,9 +127,9 @@ func TestConfigValidation(t *testing.T) {
 				Level: "info",
 			},
 		}
-		
+
 		err := cfg.validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid logging.mode")
 	})
 
@@ -140,11 +140,11 @@ func TestConfigValidation(t *testing.T) {
 				HTTPPort:  8080,
 			},
 			Sandbox: SandboxConfig{
-				Backend:           "docker",
-				TimeoutSec:        30,
-				MemoryMB:          512,
-				MaxArtifactSizeMB: 20,
-				NetworkEnabled:    false,
+				Backend:            "docker",
+				TimeoutSec:         30,
+				MemoryMB:           512,
+				MaxArtifactSizeMB:  20,
+				NetworkEnabled:     false,
 				EnableLocalBackend: false,
 			},
 			Logging: LoggingConfig{
@@ -152,9 +152,9 @@ func TestConfigValidation(t *testing.T) {
 				Level: "invalid_level", // Invalid level
 			},
 		}
-		
+
 		err := cfg.validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid logging.level")
 	})
 
@@ -177,7 +177,7 @@ func TestConfigValidation(t *testing.T) {
 				Level: "info",
 			},
 		}
-		
+
 		err := cfg.validate()
 		require.NoError(t, err)
 	})
@@ -201,9 +201,9 @@ func TestConfigValidation(t *testing.T) {
 				Level: "info",
 			},
 		}
-		
+
 		err := cfg.validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unsupported sandbox.backend")
 	})
 }

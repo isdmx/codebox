@@ -22,7 +22,7 @@ func TestIntegrationConfigLoggerSandbox(t *testing.T) {
 				HTTPPort:  8080,
 			},
 			Sandbox: config.SandboxConfig{
-				Backend:            "docker",  // This will fail in sandbox creation if local backend not enabled
+				Backend:            "docker", // This will fail in sandbox creation if local backend not enabled
 				TimeoutSec:         30,
 				MemoryMB:           512,
 				MaxArtifactSizeMB:  20,
@@ -37,13 +37,13 @@ func TestIntegrationConfigLoggerSandbox(t *testing.T) {
 		}
 
 		// Create logger using config
-		log, err := logger.New(cfg.Logging.Mode, cfg.Logging.Level)
+		testLogger, err := logger.New(cfg.Logging.Mode, cfg.Logging.Level)
 		require.NoError(t, err)
-		require.NotNil(t, log)
+		require.NotNil(t, testLogger)
 
 		// Test that logger works
-		log.Info("Integration test started")
-		log.Sync()
+		testLogger.Info("Integration test started")
+		_ = testLogger.Sync()
 	})
 
 	t.Run("ConfigLoggerSandboxFactoryIntegration", func(t *testing.T) {
@@ -72,17 +72,17 @@ func TestIntegrationConfigLoggerSandbox(t *testing.T) {
 			},
 		}
 
-		logger, err := logger.New(cfg.Logging.Mode, cfg.Logging.Level)
+		testLogger, err := logger.New(cfg.Logging.Mode, cfg.Logging.Level)
 		require.NoError(t, err)
 
 		// Create sandbox executor using config and logger
-		executor, err := sandbox.NewExecutor(logger, cfg)
+		executor, err := sandbox.NewExecutor(testLogger, cfg)
 		require.NoError(t, err)
 		require.NotNil(t, executor)
 
 		// The factory should work and create a proper executor
 		assert.NotNil(t, executor)
-		
+
 		// This test mainly verifies that the integration between config/logger/sandbox works
 		// without throwing configuration errors
 	})
@@ -102,7 +102,7 @@ func TestIntegrationConfigLoggerSandbox(t *testing.T) {
 				EnableLocalBackend: true,
 			},
 			Logging: config.LoggingConfig{
-				Mode:  "development", 
+				Mode:  "development",
 				Level: "info",
 			},
 			Languages: config.LanguageConfig{
@@ -121,15 +121,15 @@ func TestIntegrationConfigLoggerSandbox(t *testing.T) {
 			},
 		}
 
-		logger, err := logger.New(cfg.Logging.Mode, cfg.Logging.Level)
+		mcpLogger, err := logger.New(cfg.Logging.Mode, cfg.Logging.Level)
 		require.NoError(t, err)
 
 		// Create sandbox executor
-		executor, err := sandbox.NewExecutor(logger, cfg)
+		executor, err := sandbox.NewExecutor(mcpLogger, cfg)
 		require.NoError(t, err)
 
 		// Create MCP server
-		server, err := mcpserver.New(cfg, logger, executor)
+		server, err := mcpserver.New(cfg, mcpLogger, executor)
 		require.NoError(t, err)
 		require.NotNil(t, server)
 
@@ -145,7 +145,7 @@ func TestIntegrationConfigLoggerSandbox(t *testing.T) {
 
 // TestIntegrationSandboxExecution tests sandbox functionality without expecting specific execution results
 func TestIntegrationSandboxExecution(t *testing.T) {
-	logger := zaptest.NewLogger(t)
+	testLogger := zaptest.NewLogger(t)
 
 	t.Run("LocalExecutorCreation", func(t *testing.T) {
 		cfg := &config.Config{
@@ -164,10 +164,10 @@ func TestIntegrationSandboxExecution(t *testing.T) {
 			},
 		}
 
-		executor, err := sandbox.NewExecutor(logger, cfg)
+		executor, err := sandbox.NewExecutor(testLogger, cfg)
 		require.NoError(t, err)
 		require.NotNil(t, executor)
-		
+
 		// This test verifies that executor can be created properly with config and logger
 		assert.NotNil(t, executor)
 	})
@@ -198,7 +198,7 @@ func TestIntegrationSandboxExecution(t *testing.T) {
 			},
 		}
 
-		executor, err := sandbox.NewExecutor(logger, cfg)
+		executor, err := sandbox.NewExecutor(testLogger, cfg)
 		require.NoError(t, err)
 		require.NotNil(t, executor)
 

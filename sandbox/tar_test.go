@@ -21,11 +21,11 @@ type TarTestMockFileSystem struct {
 	errorOnMkdirAll string
 }
 
-func (m *TarTestMockFileSystem) MkdirTemp(dir, pattern string) (string, error) {
+func (TarTestMockFileSystem) MkdirTemp(dir, _ string) (string, error) {
 	return filepath.Join(dir, "temp"), nil
 }
 
-func (m *TarTestMockFileSystem) MkdirAll(path string, perm os.FileMode) error {
+func (m *TarTestMockFileSystem) MkdirAll(path string, _ os.FileMode) error {
 	if m.errorOnMkdirAll != "" && path == m.errorOnMkdirAll {
 		return fmt.Errorf("mock mkdir error for %s", path)
 	}
@@ -36,7 +36,7 @@ func (m *TarTestMockFileSystem) MkdirAll(path string, perm os.FileMode) error {
 	return nil
 }
 
-func (m *TarTestMockFileSystem) WriteFile(filename string, data []byte, perm os.FileMode) error {
+func (m *TarTestMockFileSystem) WriteFile(filename string, data []byte, _ os.FileMode) error {
 	if m.writeFileCalls == nil {
 		m.writeFileCalls = make(map[string][]byte)
 	}
@@ -44,12 +44,12 @@ func (m *TarTestMockFileSystem) WriteFile(filename string, data []byte, perm os.
 	return nil
 }
 
-func (m *TarTestMockFileSystem) ReadFile(filename string) ([]byte, error) {
+func (TarTestMockFileSystem) ReadFile(_ string) ([]byte, error) {
 	// This is a basic implementation for testing
 	return nil, nil
 }
 
-func (m *TarTestMockFileSystem) RemoveAll(path string) error {
+func (TarTestMockFileSystem) RemoveAll(_ string) error {
 	return nil
 }
 
@@ -89,10 +89,10 @@ func TestExtractTarToDir(t *testing.T) {
 			"file1.txt": "content1",
 			"file2.txt": "content2",
 		})
-		
+
 		err := ExtractTarToDir(mockFS, tarData, "/dest")
 		require.NoError(t, err)
-		
+
 		// Check that files were written
 		require.NotNil(t, mockFS.writeFileCalls)
 		assert.Equal(t, []byte("content1"), mockFS.writeFileCalls["/dest/file1.txt"])
@@ -102,13 +102,13 @@ func TestExtractTarToDir(t *testing.T) {
 	t.Run("DirectoryExtraction", func(t *testing.T) {
 		mockFS := &TarTestMockFileSystem{}
 		tarData := createTestTar(t, map[string]string{
-			"dir/":        "", // This creates a directory
+			"dir/":         "", // This creates a directory
 			"dir/file.txt": "content",
 		})
-		
+
 		err := ExtractTarToDir(mockFS, tarData, "/dest")
 		require.NoError(t, err)
-		
+
 		// Check that directory was created
 		assert.Contains(t, mockFS.mkdirAllCalls, "/dest/dir")
 	})
@@ -118,9 +118,9 @@ func TestExtractTarToDir(t *testing.T) {
 		tarData := createTestTar(t, map[string]string{
 			"../dangerous.txt": "should not allow",
 		})
-		
+
 		err := ExtractTarToDir(mockFS, tarData, "/dest")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unsafe relative path")
 	})
 
@@ -129,16 +129,16 @@ func TestExtractTarToDir(t *testing.T) {
 		tarData := createTestTar(t, map[string]string{
 			"/absolute/path.txt": "should not allow",
 		})
-		
+
 		err := ExtractTarToDir(mockFS, tarData, "/dest")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "absolute path not allowed")
 	})
 
 	t.Run("InvalidTarData", func(t *testing.T) {
 		mockFS := &TarTestMockFileSystem{}
 		err := ExtractTarToDir(mockFS, []byte("invalid tar data"), "/dest")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to create gzip reader")
 	})
 
@@ -149,9 +149,9 @@ func TestExtractTarToDir(t *testing.T) {
 		tarData := createTestTar(t, map[string]string{
 			"dangerous_dir/file.txt": "content",
 		})
-		
+
 		err := ExtractTarToDir(mockFS, tarData, "/dest")
-		assert.Error(t, err)
+		require.Error(t, err)
 		// The error could be for either "parent directories" or "directory"
 		// Check for either message to make the test more robust
 		assert.Contains(t, err.Error(), "failed to create")

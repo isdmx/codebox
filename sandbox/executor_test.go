@@ -31,11 +31,11 @@ func (m *MockCommandRunner) RunCommand(_ context.Context, args []string) (stdout
 	for _, arg := range args {
 		cmdKey += arg + " "
 	}
-	
+
 	if result, exists := m.commandResults[cmdKey]; exists {
 		return result.stdout, result.stderr, result.exitCode, result.err
 	}
-	
+
 	return m.defaultResult.stdout, m.defaultResult.stderr, m.defaultResult.exitCode, m.defaultResult.err
 }
 
@@ -44,9 +44,10 @@ type MockFileSystem struct {
 	mkdirTempResults map[string]string
 	mkdirAllErrors   map[string]error
 	writeFileErrors  map[string]error
+	writeFileData    map[string][]byte
 	readFileResults  map[string][]byte
 	removeAllErrors  map[string]error
-	results          map[string]interface{}
+	results          map[string]any
 }
 
 func (m *MockFileSystem) MkdirTemp(dir, pattern string) (string, error) {
@@ -57,17 +58,22 @@ func (m *MockFileSystem) MkdirTemp(dir, pattern string) (string, error) {
 	return "/tmp/test", nil
 }
 
-func (m *MockFileSystem) MkdirAll(path string, perm os.FileMode) error {
+func (m *MockFileSystem) MkdirAll(path string, _ os.FileMode) error {
 	if err, exists := m.mkdirAllErrors[path]; exists {
 		return err
 	}
 	return nil
 }
 
-func (m *MockFileSystem) WriteFile(filename string, data []byte, perm os.FileMode) error {
+func (m *MockFileSystem) WriteFile(filename string, data []byte, _ os.FileMode) error {
 	if err, exists := m.writeFileErrors[filename]; exists {
 		return err
 	}
+	// Store the data as part of the mock behavior
+	if m.writeFileData == nil {
+		m.writeFileData = make(map[string][]byte)
+	}
+	m.writeFileData[filename] = data
 	return nil
 }
 
@@ -120,11 +126,11 @@ func TestDockerExecutorConstructors(t *testing.T) {
 	t.Run("ConstructorWithOptions", func(t *testing.T) {
 		mockRunner := &MockCommandRunner{}
 		mockFS := &TarTestMockFileSystem{}
-		
+
 		executor := NewDockerExecutor(
-			logger, 
-			config, 
-			langEnvs, 
+			logger,
+			config,
+			langEnvs,
 			WithDockerCommandRunner(mockRunner),
 			WithDockerFileSystem(mockFS),
 		)
@@ -163,11 +169,11 @@ func TestPodmanExecutorConstructors(t *testing.T) {
 	t.Run("ConstructorWithOptions", func(t *testing.T) {
 		mockRunner := &MockCommandRunner{}
 		mockFS := &TarTestMockFileSystem{}
-		
+
 		executor := NewPodmanExecutor(
-			logger, 
-			config, 
-			langEnvs, 
+			logger,
+			config,
+			langEnvs,
 			WithPodmanCommandRunner(mockRunner),
 			WithPodmanFileSystem(mockFS),
 		)
@@ -206,11 +212,11 @@ func TestLocalExecutorConstructors(t *testing.T) {
 	t.Run("ConstructorWithOptions", func(t *testing.T) {
 		mockRunner := &MockCommandRunner{}
 		mockFS := &TarTestMockFileSystem{}
-		
+
 		executor := NewLocalExecutor(
-			logger, 
-			config, 
-			langEnvs, 
+			logger,
+			config,
+			langEnvs,
 			WithLocalCommandRunner(mockRunner),
 			WithLocalFileSystem(mockFS),
 		)

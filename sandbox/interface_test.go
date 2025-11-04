@@ -24,9 +24,9 @@ func TestGetCodeFileName(t *testing.T) {
 		t.Run(tt.language, func(t *testing.T) {
 			result, err := GetCodeFileName(tt.language)
 			if tt.hasError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.expected, result)
 			}
 		})
@@ -50,9 +50,9 @@ func TestGetRunCommand(t *testing.T) {
 		t.Run(tt.language, func(t *testing.T) {
 			result, err := GetRunCommand(tt.language)
 			if tt.hasError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.expected, result)
 			}
 		})

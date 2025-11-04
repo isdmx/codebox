@@ -17,7 +17,7 @@ type MockSandboxExecutor struct {
 	executeError  error
 }
 
-func (m *MockSandboxExecutor) Execute(ctx context.Context, req sandbox.ExecuteRequest) (sandbox.ExecuteResult, error) {
+func (m *MockSandboxExecutor) Execute(_ context.Context, _ sandbox.ExecuteRequest) (sandbox.ExecuteResult, error) { //nolint:gocritic // Mock implementation requires full parameter signature
 	return m.executeResult, m.executeError
 }
 
@@ -29,11 +29,11 @@ func TestNewMCPServer(t *testing.T) {
 			HTTPPort:  8080,
 		},
 		Sandbox: config.SandboxConfig{
-			Backend:           "docker",
-			TimeoutSec:        30,
-			MemoryMB:          512,
-			MaxArtifactSizeMB: 20,
-			NetworkEnabled:    false,
+			Backend:            "docker",
+			TimeoutSec:         30,
+			MemoryMB:           512,
+			MaxArtifactSizeMB:  20,
+			NetworkEnabled:     false,
 			EnableLocalBackend: false,
 		},
 		Logging: config.LoggingConfig{
@@ -57,12 +57,12 @@ func TestNewMCPServer(t *testing.T) {
 func TestServerCreation(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	cfg := &config.Config{
-		Server:  config.ServerConfig{Transport: "stdio", HTTPPort: 8080},
-		Sandbox: config.SandboxConfig{TimeoutSec: 30, MemoryMB: 512, NetworkEnabled: false, MaxArtifactSizeMB: 20},
-		Logging: config.LoggingConfig{Mode: "production", Level: "info"},
+		Server:    config.ServerConfig{Transport: "stdio", HTTPPort: 8080},
+		Sandbox:   config.SandboxConfig{TimeoutSec: 30, MemoryMB: 512, NetworkEnabled: false, MaxArtifactSizeMB: 20},
+		Logging:   config.LoggingConfig{Mode: "production", Level: "info"},
 		Languages: config.LanguageConfig{},
 	}
-	
+
 	mockExecutor := &MockSandboxExecutor{
 		executeResult: sandbox.ExecuteResult{
 			Stdout:       "output",
@@ -71,11 +71,11 @@ func TestServerCreation(t *testing.T) {
 			ArtifactsTar: []byte{},
 		},
 	}
-	
+
 	server, err := New(cfg, logger, mockExecutor)
 	require.NoError(t, err)
 	require.NotNil(t, server)
-	
+
 	// Test that server has proper initialization
 	assert.Equal(t, cfg, server.config)
 	assert.Equal(t, logger, server.logger)

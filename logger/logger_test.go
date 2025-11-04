@@ -13,25 +13,25 @@ func TestLoggerNew(t *testing.T) {
 		logger, err := New("development", "debug")
 		require.NoError(t, err)
 		assert.NotNil(t, logger)
-		logger.Sync()
+		_ = logger.Sync()
 	})
 
 	t.Run("ValidProductionMode", func(t *testing.T) {
 		logger, err := New("production", "info")
 		require.NoError(t, err)
 		assert.NotNil(t, logger)
-		logger.Sync()
+		_ = logger.Sync()
 	})
 
 	t.Run("InvalidMode", func(t *testing.T) {
 		_, err := New("invalid_mode", "info")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid logging mode")
 	})
 
 	t.Run("InvalidLevel", func(t *testing.T) {
 		_, err := New("production", "invalid_level")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid logging level")
 	})
 
@@ -42,7 +42,7 @@ func TestLoggerNew(t *testing.T) {
 				logger, err := New("production", level)
 				require.NoError(t, err)
 				assert.NotNil(t, logger)
-				logger.Sync()
+				_ = logger.Sync()
 			})
 		}
 	})
@@ -59,7 +59,7 @@ func TestLoggerNewFromConfig(t *testing.T) {
 		logger, err := NewFromConfig(cfg)
 		require.NoError(t, err)
 		assert.NotNil(t, logger)
-		logger.Sync()
+		_ = logger.Sync()
 	})
 
 	t.Run("InvalidConfig", func(t *testing.T) {
@@ -70,6 +70,6 @@ func TestLoggerNewFromConfig(t *testing.T) {
 			},
 		}
 		_, err := NewFromConfig(cfg)
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }

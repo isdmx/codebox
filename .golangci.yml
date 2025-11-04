@@ -51,6 +51,7 @@ linters:
     - unparam
     - unused
     - whitespace
+    - testifylint
 
   settings:
     depguard:
@@ -100,10 +101,10 @@ linters:
         - condition
         - return
       ignored-numbers:
-        - '0'
-        - '1'
-        - '2'
-        - '3'
+        - "0"
+        - "1"
+        - "2"
+        - "3"
       ignored-functions:
         - strings.SplitN
     govet:
@@ -204,8 +205,8 @@ formatters:
   settings:
     gofmt:
       rewrite-rules:
-        - pattern: 'interface{}'
-          replacement: 'any'
+        - pattern: "interface{}"
+          replacement: "any"
     goimports:
       local-prefixes:
         - github.com/golangci/golangci-lint/v2
