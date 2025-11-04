@@ -101,10 +101,25 @@ std::cout << \"Hello, World!\" << std::endl;
 return 0;
 }
 "
+```
+
+### Using the CLI Mode with files
 
 
-# Execute with initial files 
-mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp --tool-name execute_sandboxed_code --tool-arg language=python --tool-arg code="with open('input.txt', 'r') as f: print(f.read())" --tool-arg workdir_tar="base64-encoded-tar-content-here"
+
+```bash
+mcp-inspector --cli --transport http --method tools/call --server-url --target http://localhost:8080/mcp \
+  --tool-name execute_sandboxed_code --tool-arg language=python --tool-arg code='
+import os
+import sys
+
+f = open("report.txt", "w")
+print(sys.version, file=f)
+print(os.uname(), file=f)
+print("\n".join(f"{k}={v}" for k, v in os.environ.items()), file=f)
+f.close()
+' | jq -r '.content.[0].text' | jq -r '.artifacts_tar' | base64 -D | tar tf -
+
 ```
 
 

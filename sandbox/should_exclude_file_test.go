@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestShouldExcludeFile tests the shouldExcludeFile function
@@ -153,9 +154,9 @@ func TestFilePathMatchBehavior(t *testing.T) {
 				misses:  []string{"file.html", "script.js", "README.md", "dir/file.txt"},
 			},
 			{
-				pattern: "**/*.txt", // This won't work as expected with filepath.Match - it only supports basic glob; ** is treated as two * wildcards
-				matches: []string{"subdir/file.txt"}, // matches because first * matches "subdir", second * matches "", and *.txt matches "file.txt" 
-				misses:  []string{"file.txt"}, // doesn't match because there's no directory component to match the first *
+				pattern: "**/*.txt",                  // This won't work as expected with filepath.Match - it only supports basic glob; ** is treated as two * wildcards
+				matches: []string{"subdir/file.txt"}, // matches because first * matches "subdir", second * matches "", and *.txt matches "file.txt"
+				misses:  []string{"file.txt"},        // doesn't match because there's no directory component to match the first *
 			},
 			{
 				pattern: "main.*",
@@ -168,14 +169,14 @@ func TestFilePathMatchBehavior(t *testing.T) {
 			for _, match := range p.matches {
 				t.Run(p.pattern+" matches "+match, func(t *testing.T) {
 					matched, err := filepath.Match(p.pattern, match)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					assert.True(t, matched, "%s should match pattern %s", match, p.pattern)
 				})
 			}
 			for _, miss := range p.misses {
 				t.Run(p.pattern+" misses "+miss, func(t *testing.T) {
 					matched, err := filepath.Match(p.pattern, miss)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					assert.False(t, matched, "%s should not match pattern %s", miss, p.pattern)
 				})
 			}

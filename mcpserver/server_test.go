@@ -4,11 +4,12 @@ import (
 	"context"
 	"testing"
 
-	"github.com/isdmx/codebox/config"
-	"github.com/isdmx/codebox/sandbox"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
+
+	"github.com/isdmx/codebox/config"
+	"github.com/isdmx/codebox/sandbox"
 )
 
 // MockSandboxExecutor implements sandbox.SandboxExecutor for testing

@@ -3,13 +3,14 @@ package integration
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
+
 	"github.com/isdmx/codebox/config"
 	"github.com/isdmx/codebox/logger"
 	"github.com/isdmx/codebox/mcpserver"
 	"github.com/isdmx/codebox/sandbox"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zaptest"
 )
 
 // TestIntegrationConfigLoggerSandbox tests the integration between config, logger, and sandbox packages
