@@ -14,17 +14,17 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/isdmx/codebox/config"
 )
 
 // DockerExecutor implements SandboxExecutor using Docker
 type DockerExecutor struct {
-	logger          *zap.Logger
-	config          *Config
-	langEnvs        *LanguageEnvironments
-	langConfigs     *LanguageConfigs
-	langCodeConfigs *LanguageCodeConfigs
-	cmdRunner       CommandRunner
-	fs              FileSystem
+	logger    *zap.Logger
+	config    *Config
+	cfg       *config.Config // Reference to the full configuration
+	cmdRunner CommandRunner
+	fs        FileSystem
 }
 
 // Config holds configuration for the Docker executor
@@ -52,30 +52,14 @@ func WithDockerFileSystem(fs FileSystem) DockerExecutorOption {
 	}
 }
 
-// WithDockerLanguageConfigs sets the LanguageConfigs for DockerExecutor
-func WithDockerLanguageConfigs(langConfigs *LanguageConfigs) DockerExecutorOption {
-	return func(d *DockerExecutor) {
-		d.langConfigs = langConfigs
-	}
-}
-
-// WithDockerLanguageCodeConfigs sets the LanguageCodeConfigs for DockerExecutor
-func WithDockerLanguageCodeConfigs(langCodeConfigs *LanguageCodeConfigs) DockerExecutorOption {
-	return func(d *DockerExecutor) {
-		d.langCodeConfigs = langCodeConfigs
-	}
-}
-
 // NewDockerExecutor creates a new DockerExecutor with default implementations and optional interfaces
-func NewDockerExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments, opts ...DockerExecutorOption) *DockerExecutor {
+func NewDockerExecutor(logger *zap.Logger, executorConfig *Config, cfg *config.Config, opts ...DockerExecutorOption) *DockerExecutor {
 	executor := &DockerExecutor{
-		logger:          logger,
-		config:          config,
-		langEnvs:        langEnvs,
-		langConfigs:     &LanguageConfigs{},     // Default empty, can be set via options
-		langCodeConfigs: &LanguageCodeConfigs{}, // Default empty, can be set via options
-		cmdRunner:       &RealCommandRunner{},   // Default implementation
-		fs:              &RealFileSystem{},      // Default implementation
+		logger:    logger,
+		config:    executorConfig,
+		cfg:       cfg,
+		cmdRunner: &RealCommandRunner{}, // Default implementation
+		fs:        &RealFileSystem{},    // Default implementation
 	}
 
 	// Apply options
@@ -120,8 +104,8 @@ func (d *DockerExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 		return ExecuteResult{}, fmt.Errorf("invalid language: %w", getErr)
 	}
 
-	// Apply hooks for interpreted languages
-	finalCode := ApplyHooks(req.Language, req.Code, d.langCodeConfigs)
+	// Apply hooks for interpreted languages using config
+	finalCode := d.applyHooksFromConfig(req.Language, req.Code)
 
 	codeFilePath := filepath.Join(workdirPath, codeFileName)
 	if writeErr := d.fs.WriteFile(codeFilePath, []byte(finalCode), FilePermission); writeErr != nil {
@@ -129,7 +113,7 @@ func (d *DockerExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 	}
 
 	// Build the Docker command
-	imageName := getLanguageImage(req.Language)
+	imageName := d.getLanguageImage(req.Language)
 	containerName := fmt.Sprintf("codebox-exec-%d", time.Now().UnixNano())
 
 	// Prepare Docker run command with security restrictions
@@ -153,11 +137,8 @@ func (d *DockerExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 		cmdArgs = append(cmdArgs, "--network", "bridge")
 	}
 
-	// Add environment variables based on language
-	envVars, envErr := d.getEnvironmentVariables(req.Language)
-	if envErr != nil {
-		return ExecuteResult{}, fmt.Errorf("failed to get environment variables: %w", envErr)
-	}
+	// Add environment variables based on language from config
+	envVars := d.getEnvironmentVariables(req.Language)
 
 	// Log environment variables for debugging (at info level to ensure visibility)
 	if len(envVars) > 0 {
@@ -212,25 +193,10 @@ func (d *DockerExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 		return ExecuteResult{}, fmt.Errorf("failed to execute container: %w", err)
 	}
 
-	// Determine exclude patterns based on language
+	// Determine exclude patterns based on language from config
 	var excludePatterns []string
-	switch req.Language {
-	case LanguagePython:
-		if d.langConfigs != nil {
-			excludePatterns = d.langConfigs.Python.ExcludePatterns
-		}
-	case LanguageNodeJS:
-		if d.langConfigs != nil {
-			excludePatterns = d.langConfigs.NodeJS.ExcludePatterns
-		}
-	case LanguageGo:
-		if d.langConfigs != nil {
-			excludePatterns = d.langConfigs.Go.ExcludePatterns
-		}
-	case LanguageCPP:
-		if d.langConfigs != nil {
-			excludePatterns = d.langConfigs.CPP.ExcludePatterns
-		}
+	if langConfig, exists := d.cfg.Languages[req.Language]; exists {
+		excludePatterns = langConfig.ExcludePatterns
 	}
 
 	// Create artifacts tar from the workdir with exclude patterns
@@ -259,8 +225,14 @@ func (*DockerExecutor) getCodeFileName(language string) (string, error) {
 	return GetCodeFileName(language)
 }
 
-func getLanguageImage(language string) string {
-	// In a real implementation, this would come from config
+func (d *DockerExecutor) getLanguageImage(language string) string {
+	if langConfig, exists := d.cfg.Languages[language]; exists {
+		if langConfig.Image != "" {
+			return langConfig.Image
+		}
+	}
+
+	// Fallback to defaults if not in config
 	switch language {
 	case "python":
 		return "python:3.11-slim"
@@ -280,8 +252,23 @@ func (*DockerExecutor) getRunCommand(language string) (string, error) {
 	return GetRunCommand(language)
 }
 
-func (d *DockerExecutor) getEnvironmentVariables(language string) (map[string]string, error) {
-	return GetEnvironmentVariables(d.langEnvs, language)
+func (d *DockerExecutor) getEnvironmentVariables(language string) map[string]string {
+	if langConfig, exists := d.cfg.Languages[language]; exists && langConfig.Environment != nil {
+		return langConfig.Environment
+	}
+	return make(map[string]string)
+}
+
+// applyHooksFromConfig applies hooks for code execution based on language from config
+func (d *DockerExecutor) applyHooksFromConfig(language, code string) string {
+	var prefixCode, postfixCode string
+
+	if langConfig, exists := d.cfg.Languages[language]; exists {
+		prefixCode = langConfig.PrefixCode
+		postfixCode = langConfig.PostfixCode
+	}
+
+	return prefixCode + code + postfixCode
 }
 
 func (d *DockerExecutor) extractTarToDir(tarData []byte, destDir string) error {

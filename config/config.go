@@ -118,50 +118,6 @@ func setDefaults(v *viper.Viper) {
 	// Logging defaults
 	v.SetDefault("logging.mode", "production")
 	v.SetDefault("logging.level", "info")
-
-	// Language defaults
-	pythonPrefixCode := `
-		import signal, sys
-
-		def timeout_handler(signum, frame):
-			print('Execution timeout!')
-			sys.exit(1)
-
-		signal.signal(signal.SIGALRM, timeout_handler)
-		signal.alarm(10)
-	`
-	v.SetDefault("languages.python.image", "python:3.11-slim")
-	v.SetDefault("languages.python.prefix_code", pythonPrefixCode)
-	v.SetDefault("languages.python.postfix_code", "\nsignal.alarm(0)")
-	v.SetDefault("languages.python.exclude_patterns", []string{
-		"__pycache__/", "*.pyc", "*.pyo", ".pytest_cache/", ".coverage", "htmlcov/",
-		".coverage.*", "*.egg-info/", ".tox/", ".nox/", ".git/", ".svn/", ".hg/",
-	})
-
-	v.SetDefault("languages.nodejs.image", "node:20-alpine")
-	v.SetDefault("languages.nodejs.prefix_code", "// Timeout logic would be implemented here\n")
-	v.SetDefault("languages.nodejs.exclude_patterns", []string{
-		"node_modules/", "npm-debug.log*", "yarn-debug.log*", "yarn-error.log*",
-		".npm/", ".yarn/", ".git/", ".svn/", ".hg/", "dist/", "build/", ".next/",
-		".nuxt/", "coverage/", ".vscode/", ".idea/",
-	})
-
-	v.SetDefault("languages.go.image", "golang:1.23-alpine")
-	v.SetDefault("languages.go.build_cmd", "go build -o /workdir/app /workdir/main.go")
-	v.SetDefault("languages.go.run_cmd", "/workdir/app")
-	v.SetDefault("languages.go.exclude_patterns", []string{
-		"*.o", "*.a", "*.so", "*.out", "go.sum", "go.mod", ".git/", ".svn/", ".hg/",
-		"vendor/", "bin/", "pkg/", "target/", ".vscode/", ".idea/",
-	})
-
-	v.SetDefault("languages.cpp.image", "gcc:13")
-	v.SetDefault("languages.cpp.build_cmd", "g++ -std=c++17 -O2 -o /workdir/app /workdir/main.cpp")
-	v.SetDefault("languages.cpp.run_cmd", "/workdir/app")
-	v.SetDefault("languages.cpp.exclude_patterns", []string{
-		"*.o", "*.a", "*.so", "*.out", "*.exe", "*.obj", "a.out", "a.exe", ".git/",
-		".svn/", ".hg/", "build/", "cmake-build*/", "bin/", "obj/", ".vscode/",
-		".idea/",
-	})
 }
 
 // loadEnvironmentVariables loads environment variables from the config file preserving case

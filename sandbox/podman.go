@@ -15,17 +15,17 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/isdmx/codebox/config"
 )
 
 // PodmanExecutor implements SandboxExecutor using Podman
 type PodmanExecutor struct {
-	logger          *zap.Logger
-	config          *Config
-	langEnvs        *LanguageEnvironments
-	langConfigs     *LanguageConfigs
-	langCodeConfigs *LanguageCodeConfigs
-	cmdRunner       CommandRunner
-	fs              FileSystem
+	logger    *zap.Logger
+	config    *Config
+	cfg       *config.Config // Reference to the full configuration
+	cmdRunner CommandRunner
+	fs        FileSystem
 }
 
 // PodmanExecutorOption defines a functional option for PodmanExecutor
@@ -45,30 +45,14 @@ func WithPodmanFileSystem(fs FileSystem) PodmanExecutorOption {
 	}
 }
 
-// WithPodmanLanguageConfigs sets the LanguageConfigs for PodmanExecutor
-func WithPodmanLanguageConfigs(langConfigs *LanguageConfigs) PodmanExecutorOption {
-	return func(p *PodmanExecutor) {
-		p.langConfigs = langConfigs
-	}
-}
-
-// WithPodmanLanguageCodeConfigs sets the LanguageCodeConfigs for PodmanExecutor
-func WithPodmanLanguageCodeConfigs(langCodeConfigs *LanguageCodeConfigs) PodmanExecutorOption {
-	return func(p *PodmanExecutor) {
-		p.langCodeConfigs = langCodeConfigs
-	}
-}
-
 // NewPodmanExecutor creates a new PodmanExecutor with default implementations and optional interfaces
-func NewPodmanExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments, opts ...PodmanExecutorOption) *PodmanExecutor {
+func NewPodmanExecutor(logger *zap.Logger, executorConfig *Config, cfg *config.Config, opts ...PodmanExecutorOption) *PodmanExecutor {
 	executor := &PodmanExecutor{
-		logger:          logger,
-		config:          config,
-		langEnvs:        langEnvs,
-		langConfigs:     &LanguageConfigs{},     // Default empty, can be set via options
-		langCodeConfigs: &LanguageCodeConfigs{}, // Default empty, can be set via options
-		cmdRunner:       &RealCommandRunner{},   // Default implementation
-		fs:              &RealFileSystem{},      // Default implementation
+		logger:    logger,
+		config:    executorConfig,
+		cfg:       cfg,
+		cmdRunner: &RealCommandRunner{}, // Default implementation
+		fs:        &RealFileSystem{},    // Default implementation
 	}
 
 	// Apply options
@@ -109,8 +93,11 @@ func (p *PodmanExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 		return ExecuteResult{}, fmt.Errorf("invalid language: %w", getErr)
 	}
 
+	// Apply hooks for interpreted languages using config
+	finalCode := p.applyHooksFromConfig(req.Language, req.Code)
+
 	codeFilePath := filepath.Join(workdirPath, codeFileName)
-	if writeErr := p.writeUserCode(req.Language, req.Code, codeFilePath); writeErr != nil {
+	if writeErr := p.fs.WriteFile(codeFilePath, []byte(finalCode), FilePermission); writeErr != nil {
 		return ExecuteResult{}, fmt.Errorf("failed to write user code: %w", writeErr)
 	}
 
@@ -142,11 +129,8 @@ func (p *PodmanExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 	// Add the image and command to execute
 	cmdArgs = append(cmdArgs, imageName)
 
-	// Add environment variables based on language
-	envVars, err := p.getEnvironmentVariables(req.Language)
-	if err != nil {
-		return ExecuteResult{}, fmt.Errorf("failed to get environment variables: %w", err)
-	}
+	// Add environment variables based on language from config
+	envVars := p.getEnvironmentVariables(req.Language)
 
 	for key, value := range envVars {
 		cmdArgs = append(cmdArgs, "-e", fmt.Sprintf("%s=%s", key, value))
@@ -198,25 +182,10 @@ func (p *PodmanExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 		}
 	}
 
-	// Determine exclude patterns based on language
+	// Determine exclude patterns based on language from config
 	var excludePatterns []string
-	switch req.Language {
-	case LanguagePython:
-		if p.langConfigs != nil {
-			excludePatterns = p.langConfigs.Python.ExcludePatterns
-		}
-	case LanguageNodeJS:
-		if p.langConfigs != nil {
-			excludePatterns = p.langConfigs.NodeJS.ExcludePatterns
-		}
-	case LanguageGo:
-		if p.langConfigs != nil {
-			excludePatterns = p.langConfigs.Go.ExcludePatterns
-		}
-	case LanguageCPP:
-		if p.langConfigs != nil {
-			excludePatterns = p.langConfigs.CPP.ExcludePatterns
-		}
+	if langConfig, exists := p.cfg.Languages[req.Language]; exists {
+		excludePatterns = langConfig.ExcludePatterns
 	}
 
 	// Create artifacts tar from the workdir with exclude patterns
@@ -244,15 +213,14 @@ func (*PodmanExecutor) getCodeFileName(language string) (string, error) {
 	return GetCodeFileName(language)
 }
 
-func (p *PodmanExecutor) writeUserCode(language, code, filePath string) error {
-	// Apply hooks for interpreted languages
-	finalCode := ApplyHooks(language, code, p.langCodeConfigs)
+func (p *PodmanExecutor) getLanguageImage(language string) string {
+	if langConfig, exists := p.cfg.Languages[language]; exists {
+		if langConfig.Image != "" {
+			return langConfig.Image
+		}
+	}
 
-	return os.WriteFile(filePath, []byte(finalCode), FilePermission)
-}
-
-func (*PodmanExecutor) getLanguageImage(language string) string {
-	// In a real implementation, this would come from config
+	// Fallback to defaults if not in config
 	switch language {
 	case LanguagePython:
 		return "python:3.11-slim"
@@ -280,6 +248,21 @@ func (*PodmanExecutor) createTarFromDirWithExcludes(srcDir string, excludePatter
 	return CreateTarFromDirWithExcludes(srcDir, excludePatterns)
 }
 
-func (p *PodmanExecutor) getEnvironmentVariables(language string) (map[string]string, error) {
-	return GetEnvironmentVariables(p.langEnvs, language)
+func (p *PodmanExecutor) getEnvironmentVariables(language string) map[string]string {
+	if langConfig, exists := p.cfg.Languages[language]; exists && langConfig.Environment != nil {
+		return langConfig.Environment
+	}
+	return make(map[string]string)
+}
+
+// applyHooksFromConfig applies hooks for code execution based on language from config
+func (p *PodmanExecutor) applyHooksFromConfig(language, code string) string {
+	var prefixCode, postfixCode string
+
+	if langConfig, exists := p.cfg.Languages[language]; exists {
+		prefixCode = langConfig.PrefixCode
+		postfixCode = langConfig.PostfixCode
+	}
+
+	return prefixCode + code + postfixCode
 }

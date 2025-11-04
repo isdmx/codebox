@@ -16,17 +16,17 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/isdmx/codebox/config"
 )
 
 // LocalExecutor implements SandboxExecutor using local execution (for development only)
 type LocalExecutor struct {
-	logger          *zap.Logger
-	config          *Config
-	langEnvs        *LanguageEnvironments
-	langConfigs     *LanguageConfigs
-	langCodeConfigs *LanguageCodeConfigs
-	cmdRunner       CommandRunner
-	fs              FileSystem
+	logger    *zap.Logger
+	config    *Config
+	cfg       *config.Config // Reference to the full configuration
+	cmdRunner CommandRunner
+	fs        FileSystem
 }
 
 // LocalExecutorOption defines a functional option for LocalExecutor
@@ -46,30 +46,14 @@ func WithLocalFileSystem(fs FileSystem) LocalExecutorOption {
 	}
 }
 
-// WithLocalLanguageConfigs sets the LanguageConfigs for LocalExecutor
-func WithLocalLanguageConfigs(langConfigs *LanguageConfigs) LocalExecutorOption {
-	return func(l *LocalExecutor) {
-		l.langConfigs = langConfigs
-	}
-}
-
-// WithLocalLanguageCodeConfigs sets the LanguageCodeConfigs for LocalExecutor
-func WithLocalLanguageCodeConfigs(langCodeConfigs *LanguageCodeConfigs) LocalExecutorOption {
-	return func(l *LocalExecutor) {
-		l.langCodeConfigs = langCodeConfigs
-	}
-}
-
 // NewLocalExecutor creates a new LocalExecutor with default implementations and optional interfaces
-func NewLocalExecutor(logger *zap.Logger, config *Config, langEnvs *LanguageEnvironments, opts ...LocalExecutorOption) *LocalExecutor {
+func NewLocalExecutor(logger *zap.Logger, executorConfig *Config, cfg *config.Config, opts ...LocalExecutorOption) *LocalExecutor {
 	executor := &LocalExecutor{
-		logger:          logger,
-		config:          config,
-		langEnvs:        langEnvs,
-		langConfigs:     &LanguageConfigs{},     // Default empty, can be set via options
-		langCodeConfigs: &LanguageCodeConfigs{}, // Default empty, can be set via options
-		cmdRunner:       &RealCommandRunner{},   // Default implementation
-		fs:              &RealFileSystem{},      // Default implementation
+		logger:    logger,
+		config:    executorConfig,
+		cfg:       cfg,
+		cmdRunner: &RealCommandRunner{}, // Default implementation
+		fs:        &RealFileSystem{},    // Default implementation
 	}
 
 	// Apply options
@@ -110,8 +94,11 @@ func (l *LocalExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execut
 		return ExecuteResult{}, fmt.Errorf("invalid language: %w", getErr)
 	}
 
+	// Apply hooks for interpreted languages using config
+	finalCode := l.applyHooksFromConfig(req.Language, req.Code)
+
 	codeFilePath := filepath.Join(workdirPath, codeFileName)
-	if writeErr := l.writeUserCode(req.Language, req.Code, codeFilePath); writeErr != nil {
+	if writeErr := l.fs.WriteFile(codeFilePath, []byte(finalCode), FilePermission); writeErr != nil {
 		return ExecuteResult{}, fmt.Errorf("failed to write user code: %w", writeErr)
 	}
 
@@ -163,10 +150,7 @@ func (l *LocalExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execut
 	cmd.Dir = workdirPath
 
 	// Set environment variables based on language
-	envVars, err := l.getEnvironmentVariables(req.Language)
-	if err != nil {
-		return ExecuteResult{}, fmt.Errorf("failed to get environment variables: %w", err)
-	}
+	envVars := l.getEnvironmentVariables(req.Language)
 
 	// Start with existing environment
 	cmd.Env = os.Environ()
@@ -204,25 +188,10 @@ func (l *LocalExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execut
 		}
 	}
 
-	// Determine exclude patterns based on language
+	// Determine exclude patterns based on language from config
 	var excludePatterns []string
-	switch req.Language {
-	case LanguagePython:
-		if l.langConfigs != nil {
-			excludePatterns = l.langConfigs.Python.ExcludePatterns
-		}
-	case LanguageNodeJS:
-		if l.langConfigs != nil {
-			excludePatterns = l.langConfigs.NodeJS.ExcludePatterns
-		}
-	case LanguageGo:
-		if l.langConfigs != nil {
-			excludePatterns = l.langConfigs.Go.ExcludePatterns
-		}
-	case LanguageCPP:
-		if l.langConfigs != nil {
-			excludePatterns = l.langConfigs.CPP.ExcludePatterns
-		}
+	if langConfig, exists := l.cfg.Languages[req.Language]; exists {
+		excludePatterns = langConfig.ExcludePatterns
 	}
 
 	// Create artifacts tar from the workdir with exclude patterns
@@ -250,13 +219,6 @@ func (*LocalExecutor) getCodeFileName(language string) (string, error) {
 	return GetCodeFileName(language)
 }
 
-func (l *LocalExecutor) writeUserCode(language, code, filePath string) error {
-	// Apply hooks for interpreted languages
-	finalCode := ApplyHooks(language, code, l.langCodeConfigs)
-
-	return os.WriteFile(filePath, []byte(finalCode), FilePermission)
-}
-
 func (l *LocalExecutor) extractTarToDir(tarData []byte, destDir string) error {
 	return ExtractTarToDir(l.fs, tarData, destDir)
 }
@@ -265,6 +227,21 @@ func (*LocalExecutor) createTarFromDirWithExcludes(srcDir string, excludePattern
 	return CreateTarFromDirWithExcludes(srcDir, excludePatterns)
 }
 
-func (l *LocalExecutor) getEnvironmentVariables(language string) (map[string]string, error) {
-	return GetEnvironmentVariables(l.langEnvs, language)
+func (l *LocalExecutor) getEnvironmentVariables(language string) map[string]string {
+	if langConfig, exists := l.cfg.Languages[language]; exists && langConfig.Environment != nil {
+		return langConfig.Environment
+	}
+	return make(map[string]string)
+}
+
+// applyHooksFromConfig applies hooks for code execution based on language from config
+func (l *LocalExecutor) applyHooksFromConfig(language, code string) string {
+	var prefixCode, postfixCode string
+
+	if langConfig, exists := l.cfg.Languages[language]; exists {
+		prefixCode = langConfig.PrefixCode
+		postfixCode = langConfig.PostfixCode
+	}
+
+	return prefixCode + code + postfixCode
 }

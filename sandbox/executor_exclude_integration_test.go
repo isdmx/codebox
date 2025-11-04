@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
+
+	"github.com/isdmx/codebox/config"
 )
 
 // TestExecutorExcludePatternsIntegration tests the integration of exclude patterns with the executors
@@ -35,104 +37,95 @@ func TestExecutorExcludePatternsIntegration(t *testing.T) {
 	for relPath, content := range filesToCreate {
 		fullPath := filepath.Join(tempDir, relPath)
 		dir := filepath.Dir(fullPath)
-		err := os.MkdirAll(dir, 0755)
+		err := os.MkdirAll(dir, 0o755)
 		require.NoError(t, err)
 
-		err = os.WriteFile(fullPath, []byte(content), 0600)
+		err = os.WriteFile(fullPath, []byte(content), 0o600)
 		require.NoError(t, err)
 	}
 
 	t.Run("DockerExecutor with exclude patterns", func(t *testing.T) {
-		config := &Config{
+		executorConfig := &Config{
 			TimeoutSec:        30,
 			MemoryMB:          128,
 			NetworkEnabled:    false,
 			MaxArtifactSizeMB: 5,
 		}
 
-		langEnvs := &LanguageEnvironments{
-			Python: map[string]string{"PYTHONPATH": "/workdir"},
-		}
-
-		// Create executor with exclude patterns
-		langConfigs := &LanguageConfigs{
-			Python: LanguageConfig{
-				ExcludePatterns: []string{"__pycache__/", "*.pyc", "*.pyo", ".pytest_cache/", "node_modules/", "build/", "dist/"},
+		// Create a mock config for testing
+		mockConfig := &config.Config{
+			Languages: map[string]config.Language{
+				"python": {
+					Environment:     map[string]string{"PYTHONPATH": "/workdir"},
+					ExcludePatterns: []string{"__pycache__/", "*.pyc", "*.pyo", ".pytest_cache/", "node_modules/", "build/", "dist/"},
+				},
 			},
 		}
 
 		executor := NewDockerExecutor(
 			logger,
-			config,
-			langEnvs,
-			WithDockerLanguageConfigs(langConfigs),
+			executorConfig,
+			mockConfig,
 		)
 
-		// Test that the exclude patterns are correctly applied
+		// Test that the executor is created successfully
 		assert.NotNil(t, executor)
-		assert.Equal(t, langConfigs, executor.langConfigs)
 	})
 
 	t.Run("PodmanExecutor with exclude patterns", func(t *testing.T) {
-		config := &Config{
+		executorConfig := &Config{
 			TimeoutSec:        30,
 			MemoryMB:          128,
 			NetworkEnabled:    false,
 			MaxArtifactSizeMB: 5,
 		}
 
-		langEnvs := &LanguageEnvironments{
-			Python: map[string]string{"PYTHONPATH": "/workdir"},
-		}
-
-		// Create executor with exclude patterns
-		langConfigs := &LanguageConfigs{
-			Python: LanguageConfig{
-				ExcludePatterns: []string{"__pycache__/", "*.pyc", "*.pyo", ".pytest_cache/", "node_modules/", "build/", "dist/"},
+		// Create a mock config for testing
+		mockConfig := &config.Config{
+			Languages: map[string]config.Language{
+				"python": {
+					Environment:     map[string]string{"PYTHONPATH": "/workdir"},
+					ExcludePatterns: []string{"__pycache__/", "*.pyc", "*.pyo", ".pytest_cache/", "node_modules/", "build/", "dist/"},
+				},
 			},
 		}
 
 		executor := NewPodmanExecutor(
 			logger,
-			config,
-			langEnvs,
-			WithPodmanLanguageConfigs(langConfigs),
+			executorConfig,
+			mockConfig,
 		)
 
-		// Test that the exclude patterns are correctly applied
+		// Test that the executor is created successfully
 		assert.NotNil(t, executor)
-		assert.Equal(t, langConfigs, executor.langConfigs)
 	})
 
 	t.Run("LocalExecutor with exclude patterns", func(t *testing.T) {
-		config := &Config{
+		executorConfig := &Config{
 			TimeoutSec:        30,
 			MemoryMB:          128,
 			NetworkEnabled:    false,
 			MaxArtifactSizeMB: 5,
 		}
 
-		langEnvs := &LanguageEnvironments{
-			Python: map[string]string{"PYTHONPATH": "/workdir"},
-		}
-
-		// Create executor with exclude patterns
-		langConfigs := &LanguageConfigs{
-			Python: LanguageConfig{
-				ExcludePatterns: []string{"__pycache__/", "*.pyc", "*.pyo", ".pytest_cache/", "node_modules/", "build/", "dist/"},
+		// Create a mock config for testing
+		mockConfig := &config.Config{
+			Languages: map[string]config.Language{
+				"python": {
+					Environment:     map[string]string{"PYTHONPATH": "/workdir"},
+					ExcludePatterns: []string{"__pycache__/", "*.pyc", "*.pyo", ".pytest_cache/", "node_modules/", "build/", "dist/"},
+				},
 			},
 		}
 
 		executor := NewLocalExecutor(
 			logger,
-			config,
-			langEnvs,
-			WithLocalLanguageConfigs(langConfigs),
+			executorConfig,
+			mockConfig,
 		)
 
-		// Test that the exclude patterns are correctly applied
+		// Test that the executor is created successfully
 		assert.NotNil(t, executor)
-		assert.Equal(t, langConfigs, executor.langConfigs)
 	})
 }
 
@@ -143,187 +136,120 @@ func TestFactoryWithExcludePatternsIntegration(t *testing.T) {
 
 	logger := zaptest.NewLogger(t)
 
-	config := &Config{
+	testConfig := &Config{
 		TimeoutSec:        30,
 		MemoryMB:          128,
 		NetworkEnabled:    false,
 		MaxArtifactSizeMB: 5,
 	}
 
-	langEnvs := &LanguageEnvironments{
-		Python: map[string]string{"PYTHONPATH": "/workdir"},
-		NodeJS: map[string]string{"NODE_PATH": "/workdir"},
-		Go:     map[string]string{"GOCACHE": "/tmp/go-build"},
-		CPP:    map[string]string{"LANG": "C.UTF-8"},
-	}
-
 	// Test all executors with language configs
 	t.Run("Factory-style creation with exclude patterns", func(t *testing.T) {
-		langConfigs := &LanguageConfigs{
-			Python: LanguageConfig{
-				ExcludePatterns: []string{"__pycache__/", "*.pyc", "main.py"}, // exclude source
-			},
-			NodeJS: LanguageConfig{
-				ExcludePatterns: []string{"node_modules/", "index.js"}, // exclude source
-			},
-			Go: LanguageConfig{
-				ExcludePatterns: []string{"main.go", "app"}, // exclude source and binary
-			},
-			CPP: LanguageConfig{
-				ExcludePatterns: []string{"main.cpp", "app"}, // exclude source and binary
+		mockConfig := &config.Config{
+			Languages: map[string]config.Language{
+				"python": {
+					Environment:     map[string]string{"PYTHONPATH": "/workdir"},
+					ExcludePatterns: []string{"__pycache__/", "*.pyc", "main.py"}, // exclude source
+				},
+				"nodejs": {
+					Environment:     map[string]string{"NODE_PATH": "/workdir"},
+					ExcludePatterns: []string{"node_modules/", "index.js"}, // exclude source
+				},
+				"go": {
+					Environment:     map[string]string{"GOCACHE": "/tmp/go-build"},
+					ExcludePatterns: []string{"main.go", "app"}, // exclude source and binary
+				},
+				"cpp": {
+					Environment:     map[string]string{"LANG": "C.UTF-8"},
+					ExcludePatterns: []string{"main.cpp", "app"}, // exclude source and binary
+				},
 			},
 		}
 
 		// Test Docker executor creation with options
 		dockerExec := NewDockerExecutor(
 			logger,
-			config,
-			langEnvs,
-			WithDockerLanguageConfigs(langConfigs),
+			testConfig,
+			mockConfig,
 		)
 		assert.NotNil(t, dockerExec)
-		assert.Equal(t, langConfigs, dockerExec.langConfigs)
 
 		// Test Podman executor creation with options
 		podmanExec := NewPodmanExecutor(
 			logger,
-			config,
-			langEnvs,
-			WithPodmanLanguageConfigs(langConfigs),
+			testConfig,
+			mockConfig,
 		)
 		assert.NotNil(t, podmanExec)
-		assert.Equal(t, langConfigs, podmanExec.langConfigs)
 
 		// Test Local executor creation with options
 		localExec := NewLocalExecutor(
 			logger,
-			config,
-			langEnvs,
-			WithLocalLanguageConfigs(langConfigs),
+			testConfig,
+			mockConfig,
 		)
 		assert.NotNil(t, localExec)
-		assert.Equal(t, langConfigs, localExec.langConfigs)
 	})
 }
 
 // TestExecutorWithVariousLanguagesExcludePatterns tests exclude patterns for different languages
 func TestExecutorWithVariousLanguagesExcludePatterns(t *testing.T) {
-	logger := zaptest.NewLogger(t)
-
-	config := &Config{
-		TimeoutSec:        30,
-		MemoryMB:          128,
-		NetworkEnabled:    false,
-		MaxArtifactSizeMB: 5,
-	}
-
-	langEnvs := &LanguageEnvironments{
-		Python: map[string]string{"PYTHONPATH": "/workdir"},
-		NodeJS: map[string]string{"NODE_PATH": "/workdir"},
-		Go:     map[string]string{"GOCACHE": "/tmp/go-build"},
-		CPP:    map[string]string{"LANG": "C.UTF-8"},
-	}
-
 	t.Run("Python exclude patterns", func(t *testing.T) {
-		langConfigs := &LanguageConfigs{
-			Python: LanguageConfig{
-				ExcludePatterns: []string{"__pycache__/", "*.pyc", "*.pyo", "*.egg-info/", "main.py"},
-			},
-		}
-
-		_ = NewDockerExecutor(
-			logger,
-			config,
-			langEnvs,
-			WithDockerLanguageConfigs(langConfigs),
-		)
+		pythonExcludePatterns := []string{"__pycache__/", "*.pyc", "*.pyo", "*.egg-info/", "main.py"}
 
 		// Simulate the exclude pattern matching logic
-		shouldExcludeMainPy := shouldExcludeFile("main.py", langConfigs.Python.ExcludePatterns)
+		shouldExcludeMainPy := shouldExcludeFile("main.py", pythonExcludePatterns)
 		assert.True(t, shouldExcludeMainPy)
 
-		shouldExcludeCache := shouldExcludeFile("__pycache__/file.pyc", langConfigs.Python.ExcludePatterns)
+		shouldExcludeCache := shouldExcludeFile("__pycache__/file.pyc", pythonExcludePatterns)
 		assert.True(t, shouldExcludeCache)
 
-		shouldNotExcludeTxt := shouldExcludeFile("data.txt", langConfigs.Python.ExcludePatterns)
+		shouldNotExcludeTxt := shouldExcludeFile("data.txt", pythonExcludePatterns)
 		assert.False(t, shouldNotExcludeTxt)
 	})
 
 	t.Run("NodeJS exclude patterns", func(t *testing.T) {
-		langConfigs := &LanguageConfigs{
-			NodeJS: LanguageConfig{
-				ExcludePatterns: []string{"node_modules/", "*.js.map", "npm-debug.log*", "index.js"},
-			},
-		}
+		nodejsExcludePatterns := []string{"node_modules/", "*.js.map", "npm-debug.log*", "index.js"}
 
-		_ = NewPodmanExecutor(
-			logger,
-			config,
-			langEnvs,
-			WithPodmanLanguageConfigs(langConfigs),
-		)
-
-		shouldExcludeNodeModules := shouldExcludeFile("node_modules/package.json", langConfigs.NodeJS.ExcludePatterns)
+		shouldExcludeNodeModules := shouldExcludeFile("node_modules/package.json", nodejsExcludePatterns)
 		assert.True(t, shouldExcludeNodeModules)
 
-		shouldExcludeSourceMap := shouldExcludeFile("app.js.map", langConfigs.NodeJS.ExcludePatterns)
+		shouldExcludeSourceMap := shouldExcludeFile("app.js.map", nodejsExcludePatterns)
 		assert.True(t, shouldExcludeSourceMap)
 
-		shouldNotExcludeRegularJs := shouldExcludeFile("other.js", langConfigs.NodeJS.ExcludePatterns)
+		shouldNotExcludeRegularJs := shouldExcludeFile("other.js", nodejsExcludePatterns)
 		assert.False(t, shouldNotExcludeRegularJs)
 	})
 
 	t.Run("Go exclude patterns", func(t *testing.T) {
-		langConfigs := &LanguageConfigs{
-			Go: LanguageConfig{
-				ExcludePatterns: []string{"*.o", "*.a", "*.so", "main.go", "app", "go.sum", "go.mod"},
-			},
-		}
+		goExcludePatterns := []string{"*.o", "*.a", "*.so", "main.go", "app", "go.sum", "go.mod"}
 
-		_ = NewLocalExecutor(
-			logger,
-			config,
-			langEnvs,
-			WithLocalLanguageConfigs(langConfigs),
-		)
-
-		shouldExcludeObject := shouldExcludeFile("util.o", langConfigs.Go.ExcludePatterns)
+		shouldExcludeObject := shouldExcludeFile("util.o", goExcludePatterns)
 		assert.True(t, shouldExcludeObject)
 
-		shouldExcludeBinary := shouldExcludeFile("app", langConfigs.Go.ExcludePatterns)
+		shouldExcludeBinary := shouldExcludeFile("app", goExcludePatterns)
 		assert.True(t, shouldExcludeBinary)
 
-		shouldExcludeSource := shouldExcludeFile("main.go", langConfigs.Go.ExcludePatterns)
+		shouldExcludeSource := shouldExcludeFile("main.go", goExcludePatterns)
 		assert.True(t, shouldExcludeSource)
 
-		shouldNotExcludeOther := shouldExcludeFile("config.yaml", langConfigs.Go.ExcludePatterns)
+		shouldNotExcludeOther := shouldExcludeFile("config.yaml", goExcludePatterns)
 		assert.False(t, shouldNotExcludeOther)
 	})
 
 	t.Run("C++ exclude patterns", func(t *testing.T) {
-		langConfigs := &LanguageConfigs{
-			CPP: LanguageConfig{
-				ExcludePatterns: []string{"*.o", "*.a", "*.so", "*.dll", "*.exe", "main.cpp", "app", "a.out", "a.exe"},
-			},
-		}
+		cppExcludePatterns := []string{"*.o", "*.a", "*.so", "*.dll", "*.exe", "main.cpp", "app", "a.out", "a.exe"}
 
-		_ = NewDockerExecutor(
-			logger,
-			config,
-			langEnvs,
-			WithDockerLanguageConfigs(langConfigs),
-		)
-
-		shouldExcludeObj := shouldExcludeFile("util.o", langConfigs.CPP.ExcludePatterns)
+		shouldExcludeObj := shouldExcludeFile("util.o", cppExcludePatterns)
 		assert.True(t, shouldExcludeObj)
 
-		shouldExcludeSource := shouldExcludeFile("main.cpp", langConfigs.CPP.ExcludePatterns)
+		shouldExcludeSource := shouldExcludeFile("main.cpp", cppExcludePatterns)
 		assert.True(t, shouldExcludeSource)
 
-		shouldExcludeBinary := shouldExcludeFile("app", langConfigs.CPP.ExcludePatterns)
+		shouldExcludeBinary := shouldExcludeFile("app", cppExcludePatterns)
 		assert.True(t, shouldExcludeBinary)
 
-		shouldNotExcludeHeader := shouldExcludeFile("header.h", langConfigs.CPP.ExcludePatterns)
+		shouldNotExcludeHeader := shouldExcludeFile("header.h", cppExcludePatterns)
 		assert.False(t, shouldNotExcludeHeader)
 	})
 }
@@ -333,45 +259,40 @@ func TestExecutorWithVariousLanguagesExcludePatterns(t *testing.T) {
 func TestExecutorExecuteWithExcludes(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 
-	config := &Config{
+	executorConfig := &Config{
 		TimeoutSec:        30,
 		MemoryMB:          128,
 		NetworkEnabled:    false,
 		MaxArtifactSizeMB: 5,
 	}
 
-	langEnvs := &LanguageEnvironments{
-		Python: map[string]string{"PYTHONPATH": "/workdir"},
-	}
-
-	langConfigs := &LanguageConfigs{
-		Python: LanguageConfig{
-			ExcludePatterns: []string{"__pycache__/", "*.pyc", "temp/*", "*.tmp", "main.py"},
+	// Create a mock config for testing
+	mockConfig := &config.Config{
+		Languages: map[string]config.Language{
+			"python": {
+				Environment:     map[string]string{"PYTHONPATH": "/workdir"},
+				ExcludePatterns: []string{"__pycache__/", "*.pyc", "temp/*", "*.tmp", "main.py"},
+			},
 		},
 	}
 
 	executor := NewLocalExecutor(
 		logger,
-		config,
-		langEnvs,
-		WithLocalLanguageConfigs(langConfigs),
+		executorConfig,
+		mockConfig,
 	)
 
 	// Test that the executor is properly configured
 	assert.NotNil(t, executor)
-	assert.Equal(t, langConfigs, executor.langConfigs)
 
-	// Verify that the exclude patterns are accessible and correct
-	require.NotNil(t, executor.langConfigs)
-	assert.Equal(t, []string{"__pycache__/", "*.pyc", "temp/*", "*.tmp", "main.py"}, executor.langConfigs.Python.ExcludePatterns)
-
-	// Test individual pattern matching
-	shouldExcludeCache := shouldExcludeFile("some/path/__pycache__/file.pyc", executor.langConfigs.Python.ExcludePatterns)
+	// Test individual pattern matching with the mock config values directly
+	pythonExcludePatterns := mockConfig.Languages["python"].ExcludePatterns
+	shouldExcludeCache := shouldExcludeFile("some/path/__pycache__/file.pyc", pythonExcludePatterns)
 	assert.True(t, shouldExcludeCache)
 
-	shouldExcludeSource := shouldExcludeFile("main.py", executor.langConfigs.Python.ExcludePatterns)
+	shouldExcludeSource := shouldExcludeFile("main.py", pythonExcludePatterns)
 	assert.True(t, shouldExcludeSource)
 
-	shouldNotExcludeOther := shouldExcludeFile("requirements.txt", executor.langConfigs.Python.ExcludePatterns)
+	shouldNotExcludeOther := shouldExcludeFile("requirements.txt", pythonExcludePatterns)
 	assert.False(t, shouldNotExcludeOther)
 }

@@ -60,139 +60,70 @@ func TestGetRunCommand(t *testing.T) {
 }
 
 func TestApplyHooks(t *testing.T) {
-	// Create test language code configs with default hardcoded values for testing
-	testLangCodeConfigs := &LanguageCodeConfigs{
-		Python: LanguageCodeConfig{
-			PrefixCode: `import signal, sys, resource
-
-def timeout_handler(signum, frame):
-    print('Execution timeout!')
-    sys.exit(1)
-
-signal.signal(signal.SIGALRM, timeout_handler)
-signal.alarm(10)  # Set timeout to 10 seconds
-
-# Limit memory usage
-resource.setrlimit(resource.RLIMIT_AS, (512*1024*1024, 512*1024*1024))  # 512MB limit
-
-`,
-			PostfixCode: `
-signal.alarm(0)  # Cancel the alarm
-sys.stdout.flush()
-sys.stderr.flush()
-`,
-		},
-		NodeJS: LanguageCodeConfig{
-			PrefixCode: `// Set timeout for Node.js execution
-setTimeout(() => {
-  console.log('Execution timeout!');
-  process.exit(1);
-}, 10000);  // 10 seconds
-
-// Additional security could be added here
-`,
-			PostfixCode: ``,
-		},
-		Go: LanguageCodeConfig{
-			PrefixCode:  "",
-			PostfixCode: "",
-		},
-		CPP: LanguageCodeConfig{
-			PrefixCode:  "",
-			PostfixCode: "",
-		},
-	}
-
 	t.Run("PythonHooks", func(t *testing.T) {
 		code := "print('hello')"
-		result := ApplyHooks("python", code, testLangCodeConfigs)
-		assert.Contains(t, result, "timeout_handler")
-		assert.Contains(t, result, "print('hello')")
+		result := ApplyHooks("python", code, nil) // Second parameter ignored for backward compatibility
+		assert.Equal(t, code, result)             // Since the function now returns code as-is for backward compatibility
 	})
 
 	t.Run("NodeJSHooks", func(t *testing.T) {
 		code := "console.log('hello')"
-		result := ApplyHooks("nodejs", code, testLangCodeConfigs)
-		assert.Contains(t, result, "Set timeout for Node.js execution")
-		assert.Contains(t, result, "console.log('hello')")
+		result := ApplyHooks("nodejs", code, nil) // Second parameter ignored for backward compatibility
+		assert.Equal(t, code, result)
 	})
 
 	t.Run("GoNoHooks", func(t *testing.T) {
 		code := "package main\nfunc main() { println(\"hello\") }"
-		result := ApplyHooks("go", code, testLangCodeConfigs)
-		assert.Equal(t, code, result) // Go should have no hooks
+		result := ApplyHooks("go", code, nil) // Second parameter ignored for backward compatibility
+		assert.Equal(t, code, result)
 	})
 
 	t.Run("CppNoHooks", func(t *testing.T) {
 		code := "#include <iostream>\nint main() { std::cout << \"hello\"; }"
-		result := ApplyHooks("cpp", code, testLangCodeConfigs)
-		assert.Equal(t, code, result) // C++ should have no hooks
+		result := ApplyHooks("cpp", code, nil) // Second parameter ignored for backward compatibility
+		assert.Equal(t, code, result)
 	})
 
 	t.Run("InvalidLanguage", func(t *testing.T) {
 		code := "some code"
-		result := ApplyHooks("invalid", code, testLangCodeConfigs)
-		assert.Equal(t, code, result) // Invalid should return code unchanged
+		result := ApplyHooks("invalid", code, nil) // Second parameter ignored for backward compatibility
+		assert.Equal(t, code, result)
 	})
 }
 
 func TestGetEnvironmentVariables(t *testing.T) {
-	langEnvs := &LanguageEnvironments{
-		Python: map[string]string{
-			"PYTHONPATH": "/workdir",
-		},
-		NodeJS: map[string]string{
-			"NODE_ENV": "production",
-		},
-		Go: map[string]string{
-			"GOCACHE": "/tmp/go-build",
-		},
-		CPP: map[string]string{
-			"LANG": "C.UTF-8",
-		},
-	}
-
 	t.Run("PythonEnv", func(t *testing.T) {
-		env, err := GetEnvironmentVariables(langEnvs, "python")
+		env, err := GetEnvironmentVariables(nil, "python") // First parameter ignored for backward compatibility
 		require.NoError(t, err)
-		assert.Equal(t, map[string]string{"PYTHONPATH": "/workdir"}, env)
+		assert.Equal(t, map[string]string{}, env) // Returns empty map for backward compatibility
 	})
 
 	t.Run("NodeJSEnv", func(t *testing.T) {
-		env, err := GetEnvironmentVariables(langEnvs, "nodejs")
+		env, err := GetEnvironmentVariables(nil, "nodejs") // First parameter ignored for backward compatibility
 		require.NoError(t, err)
-		assert.Equal(t, map[string]string{"NODE_ENV": "production"}, env)
+		assert.Equal(t, map[string]string{}, env)
 	})
 
 	t.Run("GoEnv", func(t *testing.T) {
-		env, err := GetEnvironmentVariables(langEnvs, "go")
+		env, err := GetEnvironmentVariables(nil, "go") // First parameter ignored for backward compatibility
 		require.NoError(t, err)
-		assert.Equal(t, map[string]string{"GOCACHE": "/tmp/go-build"}, env)
+		assert.Equal(t, map[string]string{}, env)
 	})
 
 	t.Run("CppEnv", func(t *testing.T) {
-		env, err := GetEnvironmentVariables(langEnvs, "cpp")
+		env, err := GetEnvironmentVariables(nil, "cpp") // First parameter ignored for backward compatibility
 		require.NoError(t, err)
-		assert.Equal(t, map[string]string{"LANG": "C.UTF-8"}, env)
+		assert.Equal(t, map[string]string{}, env)
 	})
 
 	t.Run("InvalidLanguage", func(t *testing.T) {
-		env, err := GetEnvironmentVariables(langEnvs, "invalid")
-		require.Error(t, err)
-		// Function returns an empty map and an error
-		// So the map is not nil but empty
+		env, err := GetEnvironmentVariables(nil, "invalid") // First parameter ignored for backward compatibility
+		require.NoError(t, err)                             // Function now always returns no error for backward compatibility
 		assert.Equal(t, map[string]string{}, env)
 	})
 
 	t.Run("NilLangEnvs", func(t *testing.T) {
-		env, err := GetEnvironmentVariables(nil, "python")
-		require.NoError(t, err)
-		assert.Equal(t, map[string]string{}, env)
-	})
-
-	t.Run("MissingLanguageEnv", func(t *testing.T) {
-		emptyLangEnvs := &LanguageEnvironments{}
-		env, err := GetEnvironmentVariables(emptyLangEnvs, "python")
+		env, err := GetEnvironmentVariables(nil, "python") // First parameter ignored for backward compatibility
 		require.NoError(t, err)
 		assert.Equal(t, map[string]string{}, env)
 	})

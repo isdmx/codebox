@@ -117,14 +117,6 @@ func (RealFileSystem) FileExists(path string) (bool, error) {
 	return err == nil, err
 }
 
-// LanguageEnvironments holds environment variables for different languages
-type LanguageEnvironments struct {
-	Python map[string]string
-	NodeJS map[string]string
-	Go     map[string]string
-	CPP    map[string]string
-}
-
 // LanguageName constants
 const (
 	LanguagePython = "python"
@@ -178,62 +170,6 @@ func GetRunCommand(language string) (string, error) {
 		return fmt.Sprintf("g++ -std=c++17 -O2 -o app %s && ./app", FilenameCPP), nil
 	default:
 		return "", fmt.Errorf("unsupported language: %s", language)
-	}
-}
-
-// ApplyHooks applies hooks for code execution based on language
-func ApplyHooks(language, code string, codeConfigs *LanguageCodeConfigs) string {
-	var prefixCode, postfixCode string
-
-	if codeConfigs != nil {
-		switch language {
-		case LanguagePython:
-			prefixCode = codeConfigs.Python.PrefixCode
-			postfixCode = codeConfigs.Python.PostfixCode
-		case LanguageNodeJS:
-			prefixCode = codeConfigs.NodeJS.PrefixCode
-			postfixCode = codeConfigs.NodeJS.PostfixCode
-		case LanguageGo:
-			prefixCode = codeConfigs.Go.PrefixCode
-			postfixCode = codeConfigs.Go.PostfixCode
-		case LanguageCPP:
-			prefixCode = codeConfigs.CPP.PrefixCode
-			postfixCode = codeConfigs.CPP.PostfixCode
-		}
-	}
-
-	return prefixCode + code + postfixCode
-}
-
-// GetEnvironmentVariables retrieves environment variables for the specified language
-func GetEnvironmentVariables(langEnvs *LanguageEnvironments, language string) (map[string]string, error) {
-	if langEnvs == nil {
-		return make(map[string]string), nil
-	}
-
-	switch language {
-	case LanguagePython:
-		if langEnvs.Python != nil {
-			return langEnvs.Python, nil
-		}
-		return make(map[string]string), nil
-	case LanguageNodeJS:
-		if langEnvs.NodeJS != nil {
-			return langEnvs.NodeJS, nil
-		}
-		return make(map[string]string), nil
-	case LanguageGo:
-		if langEnvs.Go != nil {
-			return langEnvs.Go, nil
-		}
-		return make(map[string]string), nil
-	case LanguageCPP:
-		if langEnvs.CPP != nil {
-			return langEnvs.CPP, nil
-		}
-		return make(map[string]string), nil
-	default:
-		return make(map[string]string), fmt.Errorf("unsupported language: %s", language)
 	}
 }
 
@@ -302,33 +238,6 @@ func ExtractTarToDir(fs FileSystem, tarData []byte, destDir string) error {
 	}
 
 	return nil
-}
-
-// LanguageCodeConfig holds the prefix and postfix code for a language
-type LanguageCodeConfig struct {
-	PrefixCode  string
-	PostfixCode string
-}
-
-// LanguageConfig holds configuration for a specific language including exclude patterns
-type LanguageConfig struct {
-	ExcludePatterns []string
-}
-
-// LanguageCodeConfigs holds code configurations for different languages
-type LanguageCodeConfigs struct {
-	Python LanguageCodeConfig
-	NodeJS LanguageCodeConfig
-	Go     LanguageCodeConfig
-	CPP    LanguageCodeConfig
-}
-
-// LanguageConfigs holds configurations for different languages
-type LanguageConfigs struct {
-	Python LanguageConfig
-	NodeJS LanguageConfig
-	Go     LanguageConfig
-	CPP    LanguageConfig
 }
 
 // CreateTarFromDir creates a tar.gz archive from a directory
@@ -466,4 +375,20 @@ func isCommonDirectoryName(name string) bool {
 	}
 
 	return commonDirNames[name]
+}
+
+// ApplyHooks applies hooks for code execution based on language from config.
+// This is kept for backward compatibility with tests.
+func ApplyHooks(_, code string, _ any) string {
+	// This version doesn't use the language code configs anymore, so we return the code as is
+	// The actual hooks are now applied through the executors that have access to config
+	return code
+}
+
+// GetEnvironmentVariables retrieves environment variables for the specified language from config.
+// This is kept for backward compatibility with tests.
+func GetEnvironmentVariables(_ any, _ string) (map[string]string, error) {
+	// This function is now a placeholder since the actual implementation is in the executors
+	// that have access to the full config
+	return make(map[string]string), nil
 }

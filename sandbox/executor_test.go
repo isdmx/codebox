@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
+
+	"github.com/isdmx/codebox/config"
 )
 
 // MockCommandRunner implements CommandRunner for testing
@@ -102,22 +104,25 @@ func (m *MockFileSystem) FileExists(path string) (bool, error) {
 
 func TestDockerExecutorConstructors(t *testing.T) {
 	logger := zaptest.NewLogger(t)
-	config := &Config{
+	executorConfig := &Config{
 		TimeoutSec:        30,
 		MemoryMB:          512,
 		NetworkEnabled:    false,
 		MaxArtifactSizeMB: 20,
 	}
-	langEnvs := &LanguageEnvironments{
-		Python: map[string]string{"PYTHONPATH": "/workdir"},
+	mockConfig := &config.Config{
+		Languages: map[string]config.Language{
+			"python": {
+				Environment: map[string]string{"PYTHONPATH": "/workdir"},
+			},
+		},
 	}
 
 	t.Run("DefaultConstructor", func(t *testing.T) {
-		executor := NewDockerExecutor(logger, config, langEnvs)
+		executor := NewDockerExecutor(logger, executorConfig, mockConfig)
 		require.NotNil(t, executor)
 		assert.Equal(t, logger, executor.logger)
-		assert.Equal(t, config, executor.config)
-		assert.Equal(t, langEnvs, executor.langEnvs)
+		assert.Equal(t, executorConfig, executor.config)
 		// Default implementations should be set
 		assert.NotNil(t, executor.cmdRunner)
 		assert.NotNil(t, executor.fs)
@@ -129,15 +134,14 @@ func TestDockerExecutorConstructors(t *testing.T) {
 
 		executor := NewDockerExecutor(
 			logger,
-			config,
-			langEnvs,
+			executorConfig,
+			mockConfig,
 			WithDockerCommandRunner(mockRunner),
 			WithDockerFileSystem(mockFS),
 		)
 		require.NotNil(t, executor)
 		assert.Equal(t, logger, executor.logger)
-		assert.Equal(t, config, executor.config)
-		assert.Equal(t, langEnvs, executor.langEnvs)
+		assert.Equal(t, executorConfig, executor.config)
 		assert.Equal(t, mockRunner, executor.cmdRunner)
 		assert.Equal(t, mockFS, executor.fs)
 	})
@@ -145,22 +149,25 @@ func TestDockerExecutorConstructors(t *testing.T) {
 
 func TestPodmanExecutorConstructors(t *testing.T) {
 	logger := zaptest.NewLogger(t)
-	config := &Config{
+	executorConfig := &Config{
 		TimeoutSec:        30,
 		MemoryMB:          512,
 		NetworkEnabled:    false,
 		MaxArtifactSizeMB: 20,
 	}
-	langEnvs := &LanguageEnvironments{
-		Python: map[string]string{"PYTHONPATH": "/workdir"},
+	mockConfig := &config.Config{
+		Languages: map[string]config.Language{
+			"python": {
+				Environment: map[string]string{"PYTHONPATH": "/workdir"},
+			},
+		},
 	}
 
 	t.Run("DefaultConstructor", func(t *testing.T) {
-		executor := NewPodmanExecutor(logger, config, langEnvs)
+		executor := NewPodmanExecutor(logger, executorConfig, mockConfig)
 		require.NotNil(t, executor)
 		assert.Equal(t, logger, executor.logger)
-		assert.Equal(t, config, executor.config)
-		assert.Equal(t, langEnvs, executor.langEnvs)
+		assert.Equal(t, executorConfig, executor.config)
 		// Default implementations should be set
 		assert.NotNil(t, executor.cmdRunner)
 		assert.NotNil(t, executor.fs)
@@ -172,15 +179,14 @@ func TestPodmanExecutorConstructors(t *testing.T) {
 
 		executor := NewPodmanExecutor(
 			logger,
-			config,
-			langEnvs,
+			executorConfig,
+			mockConfig,
 			WithPodmanCommandRunner(mockRunner),
 			WithPodmanFileSystem(mockFS),
 		)
 		require.NotNil(t, executor)
 		assert.Equal(t, logger, executor.logger)
-		assert.Equal(t, config, executor.config)
-		assert.Equal(t, langEnvs, executor.langEnvs)
+		assert.Equal(t, executorConfig, executor.config)
 		assert.Equal(t, mockRunner, executor.cmdRunner)
 		assert.Equal(t, mockFS, executor.fs)
 	})
@@ -188,22 +194,25 @@ func TestPodmanExecutorConstructors(t *testing.T) {
 
 func TestLocalExecutorConstructors(t *testing.T) {
 	logger := zaptest.NewLogger(t)
-	config := &Config{
+	executorConfig := &Config{
 		TimeoutSec:        30,
 		MemoryMB:          512,
 		NetworkEnabled:    false,
 		MaxArtifactSizeMB: 20,
 	}
-	langEnvs := &LanguageEnvironments{
-		Python: map[string]string{"PYTHONPATH": "/workdir"},
+	mockConfig := &config.Config{
+		Languages: map[string]config.Language{
+			"python": {
+				Environment: map[string]string{"PYTHONPATH": "/workdir"},
+			},
+		},
 	}
 
 	t.Run("DefaultConstructor", func(t *testing.T) {
-		executor := NewLocalExecutor(logger, config, langEnvs)
+		executor := NewLocalExecutor(logger, executorConfig, mockConfig)
 		require.NotNil(t, executor)
 		assert.Equal(t, logger, executor.logger)
-		assert.Equal(t, config, executor.config)
-		assert.Equal(t, langEnvs, executor.langEnvs)
+		assert.Equal(t, executorConfig, executor.config)
 		// Default implementations should be set
 		assert.NotNil(t, executor.cmdRunner)
 		assert.NotNil(t, executor.fs)
@@ -215,15 +224,14 @@ func TestLocalExecutorConstructors(t *testing.T) {
 
 		executor := NewLocalExecutor(
 			logger,
-			config,
-			langEnvs,
+			executorConfig,
+			mockConfig,
 			WithLocalCommandRunner(mockRunner),
 			WithLocalFileSystem(mockFS),
 		)
 		require.NotNil(t, executor)
 		assert.Equal(t, logger, executor.logger)
-		assert.Equal(t, config, executor.config)
-		assert.Equal(t, langEnvs, executor.langEnvs)
+		assert.Equal(t, executorConfig, executor.config)
 		assert.Equal(t, mockRunner, executor.cmdRunner)
 		assert.Equal(t, mockFS, executor.fs)
 	})
