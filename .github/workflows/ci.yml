@@ -75,7 +75,7 @@ jobs:
         run: go build ./cmd/server
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage/coverage.txt
