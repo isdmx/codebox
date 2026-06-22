@@ -19,11 +19,11 @@ func createTestDirectoryStructure(t *testing.T) string {
 
 	// Create test files and directories
 	files := map[string]string{
-		"main.py":                         "print('hello')",
+		FilenamePython:                    "print('hello')",
 		"__pycache__/main.cpython-39.pyc": "cache content",
-		"test.py":                         "test code",
+		testFilePy:                        "test code",
 		"data.txt":                        "data content",
-		".git/config":                     "git config",
+		testFileGitConfig:                 "git config",
 		"node_modules/package/index.js":   "module code",
 		"build/output.o":                  "compiled object",
 		"src/main.go":                     "go code",
@@ -77,14 +77,14 @@ func testExcludePatternsCorrectly(t *testing.T) {
 	tempDir := createTestDirectoryStructure(t)
 
 	// Test excluding __pycache__, *.pyc, node_modules, etc.
-	excludePatterns := []string{"__pycache__/", "*.pyc", "node_modules/", "build/"}
+	excludePatterns := []string{testDirPycache, testPatternPyc, testDirNodeModules, testDirBuild}
 	includedFiles := extractIncludedFiles(t, tempDir, excludePatterns)
 
 	// Files that should be included (not excluded)
-	assert.Contains(t, includedFiles, "main.py")
-	assert.Contains(t, includedFiles, "test.py")
+	assert.Contains(t, includedFiles, FilenamePython)
+	assert.Contains(t, includedFiles, testFilePy)
 	assert.Contains(t, includedFiles, "data.txt")
-	assert.Contains(t, includedFiles, ".git/config")
+	assert.Contains(t, includedFiles, testFileGitConfig)
 	assert.Contains(t, includedFiles, "src/main.go")
 
 	// Files that should be excluded
@@ -110,11 +110,11 @@ func testNoExcludePatterns(t *testing.T) {
 	includedFiles := extractIncludedFiles(t, tempDir, nil)
 
 	// All files should be included when no exclude patterns are provided
-	assert.Contains(t, includedFiles, "main.py")
+	assert.Contains(t, includedFiles, FilenamePython)
 	assert.Contains(t, includedFiles, "__pycache__/main.cpython-39.pyc")
-	assert.Contains(t, includedFiles, "test.py")
+	assert.Contains(t, includedFiles, testFilePy)
 	assert.Contains(t, includedFiles, "data.txt")
-	assert.Contains(t, includedFiles, ".git/config")
+	assert.Contains(t, includedFiles, testFileGitConfig)
 	assert.Contains(t, includedFiles, "node_modules/package/index.js")
 	assert.Contains(t, includedFiles, "build/output.o")
 	assert.Contains(t, includedFiles, "src/main.go")
@@ -124,17 +124,17 @@ func testSpecificFileExtensionPattern(t *testing.T) {
 	tempDir := createTestDirectoryStructure(t)
 
 	// Exclude all .py files
-	excludePatterns := []string{"*.py"}
+	excludePatterns := []string{testPatternPy}
 	includedFiles := extractIncludedFiles(t, tempDir, excludePatterns)
 
 	// Python files should be excluded
 	mainPyExcluded := true
 	testPyExcluded := true
 	for _, file := range includedFiles {
-		if file == "main.py" {
+		if file == FilenamePython {
 			mainPyExcluded = false
 		}
-		if file == "test.py" {
+		if file == testFilePy {
 			testPyExcluded = false
 		}
 	}
@@ -143,7 +143,7 @@ func testSpecificFileExtensionPattern(t *testing.T) {
 
 	// Non-Python files should be included
 	assert.Contains(t, includedFiles, "data.txt")
-	assert.Contains(t, includedFiles, ".git/config")
+	assert.Contains(t, includedFiles, testFileGitConfig)
 	assert.Contains(t, includedFiles, "node_modules/package/index.js")
 	assert.Contains(t, includedFiles, "build/output.o")
 	assert.Contains(t, includedFiles, "src/main.go")

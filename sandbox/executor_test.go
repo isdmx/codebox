@@ -112,8 +112,8 @@ func TestDockerExecutorConstructors(t *testing.T) {
 	}
 	mockConfig := &config.Config{
 		Languages: map[string]config.Language{
-			"python": {
-				Environment: map[string]string{"PYTHONPATH": "/workdir"},
+			LanguagePython: {
+				Environment: map[string]string{testEnvPythonPath: WorkDirPath},
 			},
 		},
 	}
@@ -157,8 +157,8 @@ func TestPodmanExecutorConstructors(t *testing.T) {
 	}
 	mockConfig := &config.Config{
 		Languages: map[string]config.Language{
-			"python": {
-				Environment: map[string]string{"PYTHONPATH": "/workdir"},
+			LanguagePython: {
+				Environment: map[string]string{testEnvPythonPath: WorkDirPath},
 			},
 		},
 	}
@@ -202,8 +202,8 @@ func TestLocalExecutorConstructors(t *testing.T) {
 	}
 	mockConfig := &config.Config{
 		Languages: map[string]config.Language{
-			"python": {
-				Environment: map[string]string{"PYTHONPATH": "/workdir"},
+			LanguagePython: {
+				Environment: map[string]string{testEnvPythonPath: WorkDirPath},
 			},
 		},
 	}

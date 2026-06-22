@@ -21,11 +21,11 @@ func TestExecutorExcludePatternsIntegration(t *testing.T) {
 
 	// Create files that should be excluded (based on defaults)
 	filesToCreate := map[string]string{
-		"main.py":                         "print('hello world')",
+		FilenamePython:                    "print('hello world')",
 		"__pycache__/main.cpython-39.pyc": "cache data",
-		"test.py":                         "import unittest",
+		testFilePy:                        "import unittest",
 		"cache_file.pyc":                  "another cache",
-		"node_modules/package.json":       "node module",
+		testFileNodePkg:                   "node module",
 		"src/nested/__pycache__/file.pyc": "nested cache",
 		".pytest_cache/v/cache.py":        "pytest cache",
 		"build/output.so":                 "built output",
@@ -55,9 +55,9 @@ func TestExecutorExcludePatternsIntegration(t *testing.T) {
 		// Create a mock config for testing
 		mockConfig := &config.Config{
 			Languages: map[string]config.Language{
-				"python": {
-					Environment:     map[string]string{"PYTHONPATH": "/workdir"},
-					ExcludePatterns: []string{"__pycache__/", "*.pyc", "*.pyo", ".pytest_cache/", "node_modules/", "build/", "dist/"},
+				LanguagePython: {
+					Environment:     map[string]string{testEnvPythonPath: WorkDirPath},
+					ExcludePatterns: []string{testDirPycache, testPatternPyc, testPatternPyo, testDirPytestCache, testDirNodeModules, testDirBuild, testDirDist},
 				},
 			},
 		}
@@ -83,9 +83,9 @@ func TestExecutorExcludePatternsIntegration(t *testing.T) {
 		// Create a mock config for testing
 		mockConfig := &config.Config{
 			Languages: map[string]config.Language{
-				"python": {
-					Environment:     map[string]string{"PYTHONPATH": "/workdir"},
-					ExcludePatterns: []string{"__pycache__/", "*.pyc", "*.pyo", ".pytest_cache/", "node_modules/", "build/", "dist/"},
+				LanguagePython: {
+					Environment:     map[string]string{testEnvPythonPath: WorkDirPath},
+					ExcludePatterns: []string{testDirPycache, testPatternPyc, testPatternPyo, testDirPytestCache, testDirNodeModules, testDirBuild, testDirDist},
 				},
 			},
 		}
@@ -111,9 +111,9 @@ func TestExecutorExcludePatternsIntegration(t *testing.T) {
 		// Create a mock config for testing
 		mockConfig := &config.Config{
 			Languages: map[string]config.Language{
-				"python": {
-					Environment:     map[string]string{"PYTHONPATH": "/workdir"},
-					ExcludePatterns: []string{"__pycache__/", "*.pyc", "*.pyo", ".pytest_cache/", "node_modules/", "build/", "dist/"},
+				LanguagePython: {
+					Environment:     map[string]string{testEnvPythonPath: WorkDirPath},
+					ExcludePatterns: []string{testDirPycache, testPatternPyc, testPatternPyo, testDirPytestCache, testDirNodeModules, testDirBuild, testDirDist},
 				},
 			},
 		}
@@ -147,21 +147,21 @@ func TestFactoryWithExcludePatternsIntegration(t *testing.T) {
 	t.Run("Factory-style creation with exclude patterns", func(t *testing.T) {
 		mockConfig := &config.Config{
 			Languages: map[string]config.Language{
-				"python": {
-					Environment:     map[string]string{"PYTHONPATH": "/workdir"},
-					ExcludePatterns: []string{"__pycache__/", "*.pyc", "main.py"}, // exclude source
+				LanguagePython: {
+					Environment:     map[string]string{testEnvPythonPath: WorkDirPath},
+					ExcludePatterns: []string{testDirPycache, testPatternPyc, FilenamePython}, // exclude source
 				},
-				"nodejs": {
-					Environment:     map[string]string{"NODE_PATH": "/workdir"},
-					ExcludePatterns: []string{"node_modules/", "index.js"}, // exclude source
+				LanguageNodeJS: {
+					Environment:     map[string]string{"NODE_PATH": WorkDirPath},
+					ExcludePatterns: []string{testDirNodeModules, FilenameNodeJS}, // exclude source
 				},
-				"go": {
+				LanguageGo: {
 					Environment:     map[string]string{"GOCACHE": "/tmp/go-build"},
-					ExcludePatterns: []string{"main.go", "app"}, // exclude source and binary
+					ExcludePatterns: []string{FilenameGo, testFileApp}, // exclude source and binary
 				},
-				"cpp": {
+				LanguageCPP: {
 					Environment:     map[string]string{"LANG": "C.UTF-8"},
-					ExcludePatterns: []string{"main.cpp", "app"}, // exclude source and binary
+					ExcludePatterns: []string{FilenameCPP, testFileApp}, // exclude source and binary
 				},
 			},
 		}
@@ -195,10 +195,10 @@ func TestFactoryWithExcludePatternsIntegration(t *testing.T) {
 // TestExecutorWithVariousLanguagesExcludePatterns tests exclude patterns for different languages
 func TestExecutorWithVariousLanguagesExcludePatterns(t *testing.T) {
 	t.Run("Python exclude patterns", func(t *testing.T) {
-		pythonExcludePatterns := []string{"__pycache__/", "*.pyc", "*.pyo", "*.egg-info/", "main.py"}
+		pythonExcludePatterns := []string{testDirPycache, testPatternPyc, testPatternPyo, "*.egg-info/", FilenamePython}
 
 		// Simulate the exclude pattern matching logic
-		shouldExcludeMainPy := shouldExcludeFile("main.py", pythonExcludePatterns)
+		shouldExcludeMainPy := shouldExcludeFile(FilenamePython, pythonExcludePatterns)
 		assert.True(t, shouldExcludeMainPy)
 
 		shouldExcludeCache := shouldExcludeFile("__pycache__/file.pyc", pythonExcludePatterns)
@@ -209,9 +209,9 @@ func TestExecutorWithVariousLanguagesExcludePatterns(t *testing.T) {
 	})
 
 	t.Run("NodeJS exclude patterns", func(t *testing.T) {
-		nodejsExcludePatterns := []string{"node_modules/", "*.js.map", "npm-debug.log*", "index.js"}
+		nodejsExcludePatterns := []string{testDirNodeModules, "*.js.map", "npm-debug.log*", FilenameNodeJS}
 
-		shouldExcludeNodeModules := shouldExcludeFile("node_modules/package.json", nodejsExcludePatterns)
+		shouldExcludeNodeModules := shouldExcludeFile(testFileNodePkg, nodejsExcludePatterns)
 		assert.True(t, shouldExcludeNodeModules)
 
 		shouldExcludeSourceMap := shouldExcludeFile("app.js.map", nodejsExcludePatterns)
@@ -222,15 +222,15 @@ func TestExecutorWithVariousLanguagesExcludePatterns(t *testing.T) {
 	})
 
 	t.Run("Go exclude patterns", func(t *testing.T) {
-		goExcludePatterns := []string{"*.o", "*.a", "*.so", "main.go", "app", "go.sum", "go.mod"}
+		goExcludePatterns := []string{testPatternObj, "*.a", "*.so", FilenameGo, testFileApp, "go.sum", "go.mod"}
 
 		shouldExcludeObject := shouldExcludeFile("util.o", goExcludePatterns)
 		assert.True(t, shouldExcludeObject)
 
-		shouldExcludeBinary := shouldExcludeFile("app", goExcludePatterns)
+		shouldExcludeBinary := shouldExcludeFile(testFileApp, goExcludePatterns)
 		assert.True(t, shouldExcludeBinary)
 
-		shouldExcludeSource := shouldExcludeFile("main.go", goExcludePatterns)
+		shouldExcludeSource := shouldExcludeFile(FilenameGo, goExcludePatterns)
 		assert.True(t, shouldExcludeSource)
 
 		shouldNotExcludeOther := shouldExcludeFile("config.yaml", goExcludePatterns)
@@ -238,15 +238,15 @@ func TestExecutorWithVariousLanguagesExcludePatterns(t *testing.T) {
 	})
 
 	t.Run("C++ exclude patterns", func(t *testing.T) {
-		cppExcludePatterns := []string{"*.o", "*.a", "*.so", "*.dll", "*.exe", "main.cpp", "app", "a.out", "a.exe"}
+		cppExcludePatterns := []string{testPatternObj, "*.a", "*.so", "*.dll", "*.exe", FilenameCPP, testFileApp, "a.out", "a.exe"}
 
 		shouldExcludeObj := shouldExcludeFile("util.o", cppExcludePatterns)
 		assert.True(t, shouldExcludeObj)
 
-		shouldExcludeSource := shouldExcludeFile("main.cpp", cppExcludePatterns)
+		shouldExcludeSource := shouldExcludeFile(FilenameCPP, cppExcludePatterns)
 		assert.True(t, shouldExcludeSource)
 
-		shouldExcludeBinary := shouldExcludeFile("app", cppExcludePatterns)
+		shouldExcludeBinary := shouldExcludeFile(testFileApp, cppExcludePatterns)
 		assert.True(t, shouldExcludeBinary)
 
 		shouldNotExcludeHeader := shouldExcludeFile("header.h", cppExcludePatterns)
@@ -269,9 +269,9 @@ func TestExecutorExecuteWithExcludes(t *testing.T) {
 	// Create a mock config for testing
 	mockConfig := &config.Config{
 		Languages: map[string]config.Language{
-			"python": {
-				Environment:     map[string]string{"PYTHONPATH": "/workdir"},
-				ExcludePatterns: []string{"__pycache__/", "*.pyc", "temp/*", "*.tmp", "main.py"},
+			LanguagePython: {
+				Environment:     map[string]string{testEnvPythonPath: WorkDirPath},
+				ExcludePatterns: []string{testDirPycache, testPatternPyc, "temp/*", "*.tmp", FilenamePython},
 			},
 		},
 	}
@@ -286,11 +286,11 @@ func TestExecutorExecuteWithExcludes(t *testing.T) {
 	assert.NotNil(t, executor)
 
 	// Test individual pattern matching with the mock config values directly
-	pythonExcludePatterns := mockConfig.Languages["python"].ExcludePatterns
+	pythonExcludePatterns := mockConfig.Languages[LanguagePython].ExcludePatterns
 	shouldExcludeCache := shouldExcludeFile("some/path/__pycache__/file.pyc", pythonExcludePatterns)
 	assert.True(t, shouldExcludeCache)
 
-	shouldExcludeSource := shouldExcludeFile("main.py", pythonExcludePatterns)
+	shouldExcludeSource := shouldExcludeFile(FilenamePython, pythonExcludePatterns)
 	assert.True(t, shouldExcludeSource)
 
 	shouldNotExcludeOther := shouldExcludeFile("requirements.txt", pythonExcludePatterns)

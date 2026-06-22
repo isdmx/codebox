@@ -141,6 +141,13 @@ const (
 	FilenameCPP    = "main.cpp"
 )
 
+// Container command constants
+const (
+	WorkDirPath    = "/workdir"
+	FlagUlimit     = "--ulimit"
+	DirNodeModules = "node_modules"
+)
+
 // GetCodeFileName returns the appropriate filename based on the language
 func GetCodeFileName(language string) (string, error) {
 	switch language {
@@ -251,7 +258,13 @@ func CreateTarFromDirWithExcludes(srcDir string, excludePatterns []string) ([]by
 	gzipWriter := gzip.NewWriter(&buf)
 	tarWriter := tar.NewWriter(gzipWriter)
 
-	err := filepath.Walk(srcDir, func(file string, fi os.FileInfo, err error) error {
+	root, err := os.OpenRoot(srcDir)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+
+	err = filepath.Walk(srcDir, func(file string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -289,7 +302,7 @@ func CreateTarFromDirWithExcludes(srcDir string, excludePatterns []string) ([]by
 
 		// If it's not a directory, write the file content
 		if !fi.IsDir() {
-			data, err := os.Open(file)
+			data, err := root.Open(relPath)
 			if err != nil {
 				return err
 			}
@@ -360,7 +373,7 @@ func shouldExcludeFile(relPath string, excludePatterns []string) bool {
 func isCommonDirectoryName(name string) bool {
 	// Common directory names that should not be matched by non-directory patterns
 	commonDirNames := map[string]bool{
-		"node_modules":  true,
+		DirNodeModules:  true,
 		"__pycache__":   true,
 		".git":          true,
 		".svn":          true,

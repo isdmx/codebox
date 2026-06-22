@@ -19,7 +19,7 @@ func TestIntegrationConfigLoggerSandbox(t *testing.T) {
 		// Test that config validation works properly with logger initialization
 		cfg := &config.Config{
 			Server: config.ServerConfig{
-				Transport: "stdio",
+				Transport: config.TransportStdio,
 				HTTPPort:  8080,
 			},
 			Sandbox: config.SandboxConfig{
@@ -31,7 +31,7 @@ func TestIntegrationConfigLoggerSandbox(t *testing.T) {
 				EnableLocalBackend: false,
 			},
 			Logging: config.LoggingConfig{
-				Mode:  "development",
+				Mode:  config.LogModeDevelopment,
 				Level: "debug",
 			},
 			Languages: map[string]config.Language{},
@@ -50,23 +50,23 @@ func TestIntegrationConfigLoggerSandbox(t *testing.T) {
 	t.Run("ConfigLoggerSandboxFactoryIntegration", func(t *testing.T) {
 		cfg := &config.Config{
 			Server: config.ServerConfig{
-				Transport: "stdio",
+				Transport: config.TransportStdio,
 				HTTPPort:  8080,
 			},
 			Sandbox: config.SandboxConfig{
-				Backend:            "local", // Use local backend for testing without Docker
-				TimeoutSec:         10,      // Short timeout for tests
-				MemoryMB:           128,     // Lower memory for faster tests
+				Backend:            config.BackendLocal, // Use local backend for testing without Docker
+				TimeoutSec:         10,                  // Short timeout for tests
+				MemoryMB:           128,                 // Lower memory for faster tests
 				MaxArtifactSizeMB:  5,
 				NetworkEnabled:     false,
 				EnableLocalBackend: true, // Must be enabled for local backend
 			},
 			Logging: config.LoggingConfig{
-				Mode:  "development",
+				Mode:  config.LogModeDevelopment,
 				Level: "info",
 			},
 			Languages: map[string]config.Language{
-				"python": {
+				sandbox.LanguagePython: {
 					Image:       "python:3.11-slim",
 					Environment: map[string]string{"PYTHONPATH": "/workdir"},
 				},
@@ -91,11 +91,11 @@ func TestIntegrationConfigLoggerSandbox(t *testing.T) {
 	t.Run("FullMCPIntegration", func(t *testing.T) {
 		cfg := &config.Config{
 			Server: config.ServerConfig{
-				Transport: "stdio",
+				Transport: config.TransportStdio,
 				HTTPPort:  8080,
 			},
 			Sandbox: config.SandboxConfig{
-				Backend:            "local",
+				Backend:            config.BackendLocal,
 				TimeoutSec:         5,
 				MemoryMB:           128,
 				MaxArtifactSizeMB:  5,
@@ -103,11 +103,11 @@ func TestIntegrationConfigLoggerSandbox(t *testing.T) {
 				EnableLocalBackend: true,
 			},
 			Logging: config.LoggingConfig{
-				Mode:  "development",
+				Mode:  config.LogModeDevelopment,
 				Level: "info",
 			},
 			Languages: map[string]config.Language{
-				"python": {
+				sandbox.LanguagePython: {
 					Environment: map[string]string{},
 				},
 				"nodejs": {
@@ -151,7 +151,7 @@ func TestIntegrationSandboxExecution(t *testing.T) {
 	t.Run("LocalExecutorCreation", func(t *testing.T) {
 		cfg := &config.Config{
 			Sandbox: config.SandboxConfig{
-				Backend:            "local",
+				Backend:            config.BackendLocal,
 				TimeoutSec:         5,
 				MemoryMB:           128,
 				MaxArtifactSizeMB:  5,
@@ -159,7 +159,7 @@ func TestIntegrationSandboxExecution(t *testing.T) {
 				EnableLocalBackend: true,
 			},
 			Languages: map[string]config.Language{
-				"python": {
+				sandbox.LanguagePython: {
 					Environment: map[string]string{},
 				},
 			},
@@ -176,7 +176,7 @@ func TestIntegrationSandboxExecution(t *testing.T) {
 	t.Run("ExecutorWithDifferentLanguages", func(t *testing.T) {
 		cfg := &config.Config{
 			Sandbox: config.SandboxConfig{
-				Backend:            "local",
+				Backend:            config.BackendLocal,
 				TimeoutSec:         5,
 				MemoryMB:           128,
 				MaxArtifactSizeMB:  5,
@@ -184,7 +184,7 @@ func TestIntegrationSandboxExecution(t *testing.T) {
 				EnableLocalBackend: true,
 			},
 			Languages: map[string]config.Language{
-				"python": {
+				sandbox.LanguagePython: {
 					Environment: map[string]string{},
 				},
 				"nodejs": {
