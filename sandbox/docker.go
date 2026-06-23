@@ -121,12 +121,12 @@ func (d *DockerExecutor) Execute(ctx context.Context, req ExecuteRequest) (Execu
 		"docker", "run",
 		"--name", containerName,
 		"--rm", // Remove container after execution
-		"-v", fmt.Sprintf("%s:/workdir", workdirPath),
-		"--workdir", "/workdir",
+		"-v", fmt.Sprintf("%s:%s", workdirPath, WorkDirPath),
+		"--workdir", WorkDirPath,
 		"--memory", fmt.Sprintf("%dm", d.config.MemoryMB),
 		"--network", "none", // Disable network by default
-		"--ulimit", "fsize=100000000", // Limit file size to 100MB
-		"--ulimit", "cpu=10", // Limit CPU time (10 seconds)
+		FlagUlimit, "fsize=100000000", // Limit file size to 100MB
+		FlagUlimit, "cpu=10", // Limit CPU time (10 seconds)
 		"--security-opt", "no-new-privileges:true",
 		"--user", "nobody", // Run as non-privileged user
 		"--cap-drop", "ALL", // Drop all capabilities
@@ -234,9 +234,9 @@ func (d *DockerExecutor) getLanguageImage(language string) string {
 
 	// Fallback to defaults if not in config
 	switch language {
-	case "python":
+	case LanguagePython:
 		return "python:3.11-slim"
-	case "nodejs":
+	case LanguageNodeJS:
 		return "node:20-alpine"
 	case LanguageGo:
 		return "golang:1.23-alpine"

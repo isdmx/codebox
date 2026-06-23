@@ -21,6 +21,17 @@ const (
 	DefaultMaxArtifactSize = 20
 )
 
+// Configuration value constants.
+const (
+	TransportHTTP      = "http"
+	TransportStdio     = "stdio"
+	BackendDocker      = "docker"
+	BackendLocal       = "local"
+	LogModeProduction  = "production"
+	LogModeDevelopment = "development"
+	LogLevelInfo       = "info"
+)
+
 // Config represents the application configuration.
 type Config struct {
 	Server    ServerConfig        `mapstructure:"server"`
@@ -104,11 +115,11 @@ func New() (*Config, error) {
 // setDefaults sets the default configuration values.
 func setDefaults(v *viper.Viper) {
 	// Server defaults
-	v.SetDefault("server.transport", "stdio")
+	v.SetDefault("server.transport", TransportStdio)
 	v.SetDefault("server.http_port", DefaultHTTPPort)
 
 	// Sandbox defaults
-	v.SetDefault("sandbox.backend", "docker")
+	v.SetDefault("sandbox.backend", BackendDocker)
 	v.SetDefault("sandbox.timeout_sec", DefaultTimeoutSec)
 	v.SetDefault("sandbox.memory_mb", DefaultMemoryMB)
 	v.SetDefault("sandbox.max_artifact_size_mb", DefaultMaxArtifactSize)
@@ -116,8 +127,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("sandbox.enable_local_backend", false)
 
 	// Logging defaults
-	v.SetDefault("logging.mode", "production")
-	v.SetDefault("logging.level", "info")
+	v.SetDefault("logging.mode", LogModeProduction)
+	v.SetDefault("logging.level", LogLevelInfo)
 }
 
 // loadEnvironmentVariables loads environment variables from the config file preserving case
@@ -168,7 +179,7 @@ func loadLanguageEnvironments(rawConfig map[string]any, config *Config) error {
 
 // validate ensures the configuration is valid.
 func (c *Config) validate() error {
-	if t := c.Server.Transport; t != "stdio" && t != "http" {
+	if t := c.Server.Transport; t != TransportStdio && t != TransportHTTP {
 		return fmt.Errorf("invalid server.transport: %s, must be 'stdio' or 'http'", t)
 	}
 
@@ -185,19 +196,19 @@ func (c *Config) validate() error {
 	}
 
 	supportedBackends := map[string]bool{
-		"docker": true,
-		"podman": true,
-		"local":  c.Sandbox.EnableLocalBackend,
+		BackendDocker: true,
+		"podman":      true,
+		BackendLocal:  c.Sandbox.EnableLocalBackend,
 	}
 	if !supportedBackends[c.Sandbox.Backend] {
 		return fmt.Errorf("unsupported sandbox.backend: %s", c.Sandbox.Backend)
 	}
 
-	if m := c.Logging.Mode; m != "production" && m != "development" {
+	if m := c.Logging.Mode; m != LogModeProduction && m != LogModeDevelopment {
 		return fmt.Errorf("invalid logging.mode: %s, must be 'production' or 'development'", m)
 	}
 
-	logLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true, "dpanic": true, "panic": true, "fatal": true}
+	logLevels := map[string]bool{"debug": true, LogLevelInfo: true, "warn": true, "error": true, "dpanic": true, "panic": true, "fatal": true}
 	if !logLevels[c.Logging.Level] {
 		return fmt.Errorf("invalid logging.level: %s", c.Logging.Level)
 	}

@@ -12,11 +12,11 @@ func TestConfigValidation(t *testing.T) {
 		// Test that a valid config does not fail validation
 		cfg := &Config{
 			Server: ServerConfig{
-				Transport: "http",
+				Transport: TransportHTTP,
 				HTTPPort:  8080,
 			},
 			Sandbox: SandboxConfig{
-				Backend:            "docker",
+				Backend:            BackendDocker,
 				TimeoutSec:         30,
 				MemoryMB:           512,
 				MaxArtifactSizeMB:  20,
@@ -24,8 +24,8 @@ func TestConfigValidation(t *testing.T) {
 				EnableLocalBackend: false,
 			},
 			Logging: LoggingConfig{
-				Mode:  "production",
-				Level: "info",
+				Mode:  LogModeProduction,
+				Level: LogLevelInfo,
 			},
 			Languages: map[string]Language{
 				"python": {
@@ -45,7 +45,7 @@ func TestConfigValidation(t *testing.T) {
 				HTTPPort:  8080,
 			},
 			Sandbox: SandboxConfig{
-				Backend:            "docker",
+				Backend:            BackendDocker,
 				TimeoutSec:         30,
 				MemoryMB:           512,
 				MaxArtifactSizeMB:  20,
@@ -53,8 +53,8 @@ func TestConfigValidation(t *testing.T) {
 				EnableLocalBackend: false,
 			},
 			Logging: LoggingConfig{
-				Mode:  "production",
-				Level: "info",
+				Mode:  LogModeProduction,
+				Level: LogLevelInfo,
 			},
 		}
 
@@ -66,11 +66,11 @@ func TestConfigValidation(t *testing.T) {
 	t.Run("InvalidSandboxTimeout", func(t *testing.T) {
 		cfg := &Config{
 			Server: ServerConfig{
-				Transport: "http",
+				Transport: TransportHTTP,
 				HTTPPort:  8080,
 			},
 			Sandbox: SandboxConfig{
-				Backend:            "docker",
+				Backend:            BackendDocker,
 				TimeoutSec:         0, // Invalid: must be positive
 				MemoryMB:           512,
 				MaxArtifactSizeMB:  20,
@@ -78,8 +78,8 @@ func TestConfigValidation(t *testing.T) {
 				EnableLocalBackend: false,
 			},
 			Logging: LoggingConfig{
-				Mode:  "production",
-				Level: "info",
+				Mode:  LogModeProduction,
+				Level: LogLevelInfo,
 			},
 		}
 
@@ -91,11 +91,11 @@ func TestConfigValidation(t *testing.T) {
 	t.Run("InvalidSandboxMemory", func(t *testing.T) {
 		cfg := &Config{
 			Server: ServerConfig{
-				Transport: "http",
+				Transport: TransportHTTP,
 				HTTPPort:  8080,
 			},
 			Sandbox: SandboxConfig{
-				Backend:            "docker",
+				Backend:            BackendDocker,
 				TimeoutSec:         30,
 				MemoryMB:           0, // Invalid: must be positive
 				MaxArtifactSizeMB:  20,
@@ -103,8 +103,8 @@ func TestConfigValidation(t *testing.T) {
 				EnableLocalBackend: false,
 			},
 			Logging: LoggingConfig{
-				Mode:  "production",
-				Level: "info",
+				Mode:  LogModeProduction,
+				Level: LogLevelInfo,
 			},
 		}
 
@@ -116,11 +116,11 @@ func TestConfigValidation(t *testing.T) {
 	t.Run("InvalidLoggingMode", func(t *testing.T) {
 		cfg := &Config{
 			Server: ServerConfig{
-				Transport: "http",
+				Transport: TransportHTTP,
 				HTTPPort:  8080,
 			},
 			Sandbox: SandboxConfig{
-				Backend:            "docker",
+				Backend:            BackendDocker,
 				TimeoutSec:         30,
 				MemoryMB:           512,
 				MaxArtifactSizeMB:  20,
@@ -129,7 +129,7 @@ func TestConfigValidation(t *testing.T) {
 			},
 			Logging: LoggingConfig{
 				Mode:  "invalid_mode", // Invalid mode
-				Level: "info",
+				Level: LogLevelInfo,
 			},
 		}
 
@@ -141,11 +141,11 @@ func TestConfigValidation(t *testing.T) {
 	t.Run("InvalidLogLevel", func(t *testing.T) {
 		cfg := &Config{
 			Server: ServerConfig{
-				Transport: "http",
+				Transport: TransportHTTP,
 				HTTPPort:  8080,
 			},
 			Sandbox: SandboxConfig{
-				Backend:            "docker",
+				Backend:            BackendDocker,
 				TimeoutSec:         30,
 				MemoryMB:           512,
 				MaxArtifactSizeMB:  20,
@@ -153,7 +153,7 @@ func TestConfigValidation(t *testing.T) {
 				EnableLocalBackend: false,
 			},
 			Logging: LoggingConfig{
-				Mode:  "production",
+				Mode:  LogModeProduction,
 				Level: "invalid_level", // Invalid level
 			},
 		}
@@ -166,11 +166,11 @@ func TestConfigValidation(t *testing.T) {
 	t.Run("ValidBackendWhenLocalEnabled", func(t *testing.T) {
 		cfg := &Config{
 			Server: ServerConfig{
-				Transport: "http",
+				Transport: TransportHTTP,
 				HTTPPort:  8080,
 			},
 			Sandbox: SandboxConfig{
-				Backend:            "local",
+				Backend:            BackendLocal,
 				TimeoutSec:         30,
 				MemoryMB:           512,
 				MaxArtifactSizeMB:  20,
@@ -178,8 +178,8 @@ func TestConfigValidation(t *testing.T) {
 				EnableLocalBackend: true, // Local backend enabled
 			},
 			Logging: LoggingConfig{
-				Mode:  "production",
-				Level: "info",
+				Mode:  LogModeProduction,
+				Level: LogLevelInfo,
 			},
 		}
 
@@ -190,11 +190,11 @@ func TestConfigValidation(t *testing.T) {
 	t.Run("InvalidBackendWhenLocalNotEnabled", func(t *testing.T) {
 		cfg := &Config{
 			Server: ServerConfig{
-				Transport: "http",
+				Transport: TransportHTTP,
 				HTTPPort:  8080,
 			},
 			Sandbox: SandboxConfig{
-				Backend:            "local",
+				Backend:            BackendLocal,
 				TimeoutSec:         30,
 				MemoryMB:           512,
 				MaxArtifactSizeMB:  20,
@@ -202,8 +202,8 @@ func TestConfigValidation(t *testing.T) {
 				EnableLocalBackend: false, // Local backend not enabled
 			},
 			Logging: LoggingConfig{
-				Mode:  "production",
-				Level: "info",
+				Mode:  LogModeProduction,
+				Level: LogLevelInfo,
 			},
 		}
 

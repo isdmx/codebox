@@ -17,15 +17,15 @@ func TestShouldExcludeFile(t *testing.T) {
 			excludePattern string
 			shouldExclude  bool
 		}{
-			{"exact file match", "main.py", "main.py", true},
-			{"different file", "test.py", "main.py", false},
-			{"wildcard extension", "script.py", "*.py", true},
-			{"wildcard non-match", "script.js", "*.py", false},
-			{"wildcard multiple chars", "main.pyc", "*.pyc", true},
+			{"exact file match", FilenamePython, FilenamePython, true},
+			{"different file", testFilePy, FilenamePython, false},
+			{"wildcard extension", "script.py", testPatternPy, true},
+			{"wildcard non-match", "script.js", testPatternPy, false},
+			{"wildcard multiple chars", "main.pyc", testPatternPyc, true},
 			{"wildcard with prefix", "cache_main.py", "cache_*.py", true},
-			{"wildcard no match", "main.js", "*.py", false},
-			{"relative path", "src/main.py", "main.py", true},
-			{"relative path wildcard", "src/cache/main.pyc", "*.pyc", true},
+			{"wildcard no match", testFileMainJS, testPatternPy, false},
+			{"relative path", "src/main.py", FilenamePython, true},
+			{"relative path wildcard", "src/cache/main.pyc", testPatternPyc, true},
 		}
 
 		for _, tc := range testCases {
@@ -44,11 +44,11 @@ func TestShouldExcludeFile(t *testing.T) {
 			excludePattern string
 			shouldExclude  bool
 		}{
-			{"directory pattern exact match", "node_modules/package.json", "node_modules/", true},
-			{"directory pattern with subdir", "node_modules/deep/nested/file.js", "node_modules/", true},
-			{"directory pattern no match", "src/main.js", "node_modules/", false},
-			{"git directory", ".git/config", ".git/", true},
-			{"git directory file", ".git/HEAD", ".git/", true},
+			{"directory pattern exact match", testFileNodePkg, testDirNodeModules, true},
+			{"directory pattern with subdir", "node_modules/deep/nested/file.js", testDirNodeModules, true},
+			{"directory pattern no match", "src/main.js", testDirNodeModules, false},
+			{"git directory", testFileGitConfig, testDirGit, true},
+			{"git directory file", ".git/HEAD", testDirGit, true},
 			{"non-directory pattern on dir", "node_modules", "node_modules", false}, // without trailing slash, shouldn't match directory
 		}
 
@@ -62,7 +62,7 @@ func TestShouldExcludeFile(t *testing.T) {
 	})
 
 	t.Run("handles multiple patterns", func(t *testing.T) {
-		excludePatterns := []string{"__pycache__/", "*.pyc", "node_modules/", ".git/"}
+		excludePatterns := []string{testDirPycache, testPatternPyc, testDirNodeModules, testDirGit}
 
 		testCases := []struct {
 			name          string
@@ -71,10 +71,10 @@ func TestShouldExcludeFile(t *testing.T) {
 		}{
 			{"matches first pattern", "__pycache__/file.pyc", true},
 			{"matches second pattern", "cache.pyc", true},
-			{"matches third pattern", "node_modules/package.json", true},
-			{"matches fourth pattern", ".git/config", true},
-			{"no match", "main.py", false},
-			{"no match different extension", "main.js", false},
+			{"matches third pattern", testFileNodePkg, true},
+			{"matches fourth pattern", testFileGitConfig, true},
+			{"no match", FilenamePython, false},
+			{"no match different extension", testFileMainJS, false},
 		}
 
 		for _, tc := range testCases {
@@ -86,7 +86,7 @@ func TestShouldExcludeFile(t *testing.T) {
 	})
 
 	t.Run("handles complex directory structures", func(t *testing.T) {
-		excludePatterns := []string{"build/", "node_modules/", "*.o", "dist/"}
+		excludePatterns := []string{testDirBuild, testDirNodeModules, testPatternObj, testDirDist}
 
 		testCases := []struct {
 			name          string
@@ -113,21 +113,21 @@ func TestShouldExcludeFile(t *testing.T) {
 	t.Run("filepath.Match error handling", func(t *testing.T) {
 		// Test with an invalid pattern - should not crash but return false
 		invalidPatterns := []string{"[invalid-pattern"}
-		result := shouldExcludeFile("main.py", invalidPatterns)
+		result := shouldExcludeFile(FilenamePython, invalidPatterns)
 		// If there's a pattern match error, it should return false (not exclude)
 		assert.False(t, result)
 	})
 
 	t.Run("path separators work across platforms", func(t *testing.T) {
 		// Test that the pattern matching works with different path separators
-		excludePatterns := []string{"node_modules/"}
+		excludePatterns := []string{testDirNodeModules}
 
 		testCases := []struct {
 			name          string
 			relPath       string
 			shouldExclude bool
 		}{
-			{"forward slash", "node_modules/package.json", true},
+			{"forward slash", testFileNodePkg, true},
 			{"nested with forward slashes", "frontend/node_modules/react.js", true},
 		}
 
@@ -160,7 +160,7 @@ func TestFilePathMatchBehavior(t *testing.T) {
 			},
 			{
 				pattern: "main.*",
-				matches: []string{"main.py", "main.js", "main.go", "main.exe"},
+				matches: []string{FilenamePython, testFileMainJS, FilenameGo, "main.exe"},
 				misses:  []string{"test.main.py", "py.main"},
 			},
 		}
